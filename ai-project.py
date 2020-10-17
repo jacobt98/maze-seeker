@@ -3,12 +3,16 @@ from random import shuffle, randrange
 
 # Agent class that contains all the information needed for our agents
 class Agent:
-    def __init__(self,name,top,bottom,left,right):
+    def __init__(self,name,top,bottom,left,right,currentLocation,spotsVisited):
         self.name = name
         self.top = top
         self.bottom = bottom
         self.right = right
         self.left = left
+        self.currentLocation = currentLocation
+        self.spotsVisited = spotsVisited
+    def addSpotVisited(self,spot):
+        self.spotsVisited.append(spot) if spot not in self.spotsVisited else self.spotsVisited
 
 width = 16 # width of maze
 height = 8 # height of maze
@@ -60,6 +64,8 @@ def add_agent(maze,agent):
         mazeList[i] = agent.name
     maze = "".join(mazeList)
     agent = whatIsAvailable(maze,agent)
+    agent.currentLocation = i
+    agent.addSpotVisited(i)
     return maze
 
 # adds agent to a spot with a given location (be careful)
@@ -68,6 +74,8 @@ def add_agent_spot(maze,agent,spot):
     mazeList[spot] = agent.name
     maze = "".join(mazeList)
     agent = whatIsAvailable(maze,agent)
+    agent.currentLocation = spot
+    agent.addSpotVisited(i)
     return maze
 
 # just finds a random spot scanning from right to left, bottom to top
@@ -84,6 +92,8 @@ def add_agent_random_spot(maze,agent):
     mazeList[i] = agent.name
     maze = "".join(mazeList)
     agent = whatIsAvailable(maze,agent)
+    agent.currentLocation = i
+    agent.addSpotVisited(i)
     return maze
 
 # resets agents data
@@ -107,7 +117,7 @@ def checkForHider(mazeList, agent,i):
     if mazeList[i+widthLength] == "1":
         gameComplete = 1
 
-# looks around the agent for " " and updates it's data accordingly
+# looks around the agent for " " and updates its data accordingly
 def whatIsAvailable(maze, agent):
     global width
     global widthLength
@@ -126,6 +136,24 @@ def whatIsAvailable(maze, agent):
     checkForHider(mazeList, agent,i)
     return agent
 
+# checks for a new unvisited spot for an agent to move to
+def checkForNewSpot(maze, agent):
+    global widthLength
+    mazeList = list(maze)
+    i = 0
+    check = 0
+    while i < len(mazeList) and mazeList[i] != agent.name:
+        i = i + 1
+    if agent.top != -1 and agent.top not in agent.spotsVisited:
+        check = 1
+    if agent.left != -1 and agent.left not in agent.spotsVisited:
+        check = 1
+    if agent.right != -1 and agent.right not in agent.spotsVisited:
+        check = 1
+    if agent.bottom != -1 and agent.bottom not in agent.spotsVisited:
+        check = 1
+    return check
+
 # randomly traverses through the maze
 def randomTraverse(maze, agent):
     global stepsTaken
@@ -137,23 +165,71 @@ def randomTraverse(maze, agent):
         i = i + 1
     mazeList[i] = " "
     if agent.top != -1:
-        choicesList[choices] = agent.top #mazeList[agent.top] = agent.name
+        choicesList[choices] = agent.top # if spot available add this to our list
         choices = choices + 1
     if agent.bottom != -1:
-        choicesList[choices] = agent.bottom #mazeList[agent.bottom] = agent.name
+        choicesList[choices] = agent.bottom # so we can choose between what's available
         choices = choices + 1
     if agent.left != -1:
-        choicesList[choices] = agent.left #mazeList[agent.left] = agent.name
+        choicesList[choices] = agent.left # [old code below v]
         choices = choices + 1
     if agent.right != -1:
         choicesList[choices] = agent.right #mazeList[agent.right] = agent.name
         choices = choices + 1
 
     choicesList = choicesList[:choices]
-    #print(choicesList)
     choice = random.sample(choicesList,1)
     choice = choice[0]
     mazeList[choice] = agent.name
+    agent.addSpotVisited(choice)
+    agent.currentLocation = choice
+    agent = agent_reset(agent)
+    maze = "".join(mazeList)
+    agent = whatIsAvailable(maze,agent)
+    stepsTaken = stepsTaken + 1
+    return maze
+
+# returns the element right before the currentLocation in the spotsVisited array
+def randomTraverseBackwards(agent, currentLocation):
+    index = agent.spotsVisited.index(currentLocation)
+    return agent.spotsVisited[index-1]
+
+# looks for a random new spot to go to, traverses backwards if not found
+def randomTraverseNewSpots(maze, agent):
+    global stepsTaken
+    mazeList = list(maze)
+    i = 0
+    choices = 0
+    choicesList = [-1,-1,-1,-1]
+    while i < len(mazeList) and mazeList[i] != agent.name:
+        i = i + 1
+    agent = whatIsAvailable(maze,agent)
+
+    # traverses backwards if no new random spots available until one is found
+    if checkForNewSpot(maze,agent) == 0:
+        choice = randomTraverseBackwards(agent,i)
+    else:
+        if agent.top != -1 and agent.top not in agent.spotsVisited:
+            choicesList[choices] = agent.top # if spot available add this to our list
+            choices = choices + 1
+        if agent.bottom != -1 and agent.bottom not in agent.spotsVisited:
+            choicesList[choices] = agent.bottom # so we can choose between what's available
+            choices = choices + 1
+        if agent.left != -1 and agent.left not in agent.spotsVisited:
+            choicesList[choices] = agent.left # [old code below v]
+            choices = choices + 1
+        if agent.right != -1 and agent.right not in agent.spotsVisited:
+            choicesList[choices] = agent.right #mazeList[agent.right] = agent.name
+            choices = choices + 1
+        choicesList = choicesList[:choices]
+        #print("visited = "+str(agent.spotsVisited))
+        #print(choicesList)
+        choice = random.sample(choicesList,1)
+        choice = choice[0]
+        agent.addSpotVisited(choice)
+    mazeList[i] = " "
+    mazeList[choice] = agent.name
+    agent.currentLocation = choice
     agent = agent_reset(agent)
     maze = "".join(mazeList)
     agent = whatIsAvailable(maze,agent)
@@ -164,12 +240,19 @@ def randomTraverse(maze, agent):
 if __name__ == '__main__':
     maze = make_maze()
     #maze = make_entrance(maze)
-    seeker = Agent("0",-1,-1,-1,-1)
-    hider = Agent("1",-1,-1,-1,-1)
+    seeker = Agent("0",-1,-1,-1,-1,-1,[])
+    hider = Agent("1",-1,-1,-1,-1,-1,[])
     maze = add_agent(maze, seeker)
     maze = add_agent_random_spot(maze,hider)
     while gameComplete == 0:
-        maze = randomTraverse(maze,seeker)
+        # Random search
+        #maze = randomTraverse(maze,seeker)
+
+        # Random search to new locations
+        maze = randomTraverseNewSpots(maze,seeker)
+
         print("top = "+str(seeker.top)+"\nbottom = "+str(seeker.bottom)+"\nleft= "+str(seeker.left)+"\nright = "+str(seeker.right)+"\n")
         print(maze)
     print("Steps Taken = "+str(stepsTaken))
+    print("Spots Visited = "+str(seeker.spotsVisited))
+    print("Current Location = "+str(seeker.currentLocation))
