@@ -3,6 +3,7 @@ from random import shuffle, randrange
 
 # Agent class that contains all the information needed for our agents
 class Agent:
+    # constructor
     def __init__(self,name,top,bottom,left,right,currentLocation,spotsVisited):
         self.name = name
         self.top = top
@@ -11,8 +12,10 @@ class Agent:
         self.left = left
         self.currentLocation = currentLocation
         self.spotsVisited = spotsVisited
+
+    # add visited spot to spotsVisited list (uncomment line below to add only if non in list)
     def addSpotVisited(self,spot):
-        self.spotsVisited.append(spot) if spot not in self.spotsVisited else self.spotsVisited
+        self.spotsVisited.append(spot) #if spot not in self.spotsVisited else self.spotsVisited
 
 width = 16 # width of maze
 height = 8 # height of maze
@@ -226,7 +229,7 @@ def randomTraverseNewSpots(maze, agent):
         #print(choicesList)
         choice = random.sample(choicesList,1)
         choice = choice[0]
-        agent.addSpotVisited(choice)
+    agent.addSpotVisited(choice)
     mazeList[i] = " "
     mazeList[choice] = agent.name
     agent.currentLocation = choice
