@@ -1,4 +1,4 @@
-# import msvcrt
+#import msvcrt
 import time
 import random
 from random import shuffle, randrange
@@ -350,7 +350,7 @@ def updateLeft(mazeList,agent,currentLocation):
         agent.addSpotSeen(i)
         i = i - 1
 
-# updates the horizontal sight(all " ") to the left of the agent
+# updates the horizontal sight(all " ") to the right of the agent
 def updateRight(mazeList,agent,currentLocation):
     global widthLength
     i = currentLocation + 1
@@ -392,15 +392,23 @@ def seekerToHider(mazeList,agent,currentLocation,hiderLocation):
         i = i + 1
         seekerLengthToSlashN = seekerLengthToSlashN + 1
     
-    if hiderLengthToSlashN == seekerLengthToSlashN and currentLocation < hiderLocation:# hider below
+    if agent.bottom != -1 and hiderLengthToSlashN == seekerLengthToSlashN and currentLocation < hiderLocation:# hider below
         result = currentLocation + widthLength
-    elif hiderLengthToSlashN == seekerLengthToSlashN and hiderLocation < currentLocation: # hider above
+    elif agent.top != -1 and hiderLengthToSlashN == seekerLengthToSlashN and hiderLocation < currentLocation: # hider above
         result = currentLocation - widthLength
-    elif hiderLengthToSlashN < seekerLengthToSlashN: # hider to the right
+    elif agent.right != -1 and hiderLengthToSlashN < seekerLengthToSlashN: # hider to the right
         result = currentLocation + 1
-    elif seekerLengthToSlashN < hiderLengthToSlashN:# hider to the left
+    elif agent.left != -1 and seekerLengthToSlashN < hiderLengthToSlashN:# hider to the left
         result = currentLocation - 1
-    
+    if result == currentLocation:
+        if agent.bottom != -1 and currentLocation < hiderLocation:# hider below
+            result = currentLocation + widthLength
+        elif agent.top != -1 and hiderLocation < currentLocation: # hider above
+            result = currentLocation - widthLength
+        elif agent.right != -1 and currentLocation < hiderLocation: # hider to the right
+            result = currentLocation + 1
+        elif agent.left != -1 and hiderLocation < currentLocation:# hider to the left
+            result = currentLocation - 1
     # if the hider is above the seeker
     #if hiderLocation < currentLocation and (widthLength <= (currentLocation - hiderLocation)):
     #    result = currentLocation - widthLength
@@ -431,6 +439,7 @@ def randomTraverseNewSpotsSight(maze, agent):
     hiderLocation = checkForHiderSight(mazeList,agent)
     # check if there's a hider in sight
     if hiderLocation != 0:
+        #print("YESS")
         choice = seekerToHider(mazeList,agent,i,hiderLocation)
     # otherwise, traverse backwards if no new random spots available until one is found
     elif checkForNewSpot(maze,agent) == 0:
