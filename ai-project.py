@@ -1,4 +1,4 @@
-#import msvcrt
+# import msvcrt
 import time
 import random
 from random import shuffle, randrange
@@ -22,11 +22,11 @@ class Agent:
     def addSpotVisited(self,spot):
         self.spotsVisited.append(spot) #if spot not in self.spotsVisited else self.spotsVisited
 
-    # add visited spot to spotsVisited list
+    # add visited spot to spotsSeeing list
     def addSpotSeeing(self,spot):
         self.spotsSeeing.append(spot) #if spot not in self.spotsSeeing else self.spotsSeeing
 
-    # add visited spot to spotsVisited list 
+    # add visited spot to spotsSeen list 
     def addSpotSeen(self,spot):
         self.spotsSeen.append(spot) #if spot not in self.spotsSeen else self.spotsSeen
 
@@ -256,24 +256,88 @@ def randomTraverseNewSpots(maze, agent):
 # updates the vertical sight(all " ") above the agent
 def updateTop(mazeList,agent,currentLocation):
     global widthLength
+    if (currentLocation - (widthLength*2)-1) <= 0:
+        return
     i = currentLocation - widthLength
+    # checking to see if the space to the left of you is a space and the space right above it (past the line of walls) so we can
+    # expand the view of the agent to the proper length of the maze halls
+    left = True
+    right = True
+    if (mazeList[currentLocation-1] != " " and mazeList[currentLocation-1] != "1") and (mazeList[(currentLocation-(widthLength))-1] != " " and mazeList[(currentLocation-(widthLength))-1] != "1"):
+        left = False
+    if (mazeList[currentLocation+1] != " " and mazeList[currentLocation+1] != "1") and (mazeList[(currentLocation-(widthLength))+1] != " " and mazeList[(currentLocation-(widthLength))+1] != "1"):
+        right = False
     while 0 < i:
         if mazeList[i] != " " and mazeList[i] != "1":
             break
         agent.addSpotSeeing(i)
         agent.addSpotSeen(i)
         i = i - widthLength
+    if left == True:
+        i = currentLocation - widthLength -1
+        while 0 < i:
+            if mazeList[i] != " " and mazeList[i] != "1":
+                break
+            agent.addSpotSeeing(i)
+            agent.addSpotSeen(i)
+            if mazeList[i-1] == " ":
+                agent.addSpotSeeing(i-1)
+                agent.addSpotSeen(i-1)
+            i = i - widthLength
+    if right == True:
+        i = currentLocation - widthLength +1
+        while 0 < i:
+            if mazeList[i] != " " and mazeList[i] != "1":
+                break
+            agent.addSpotSeeing(i)
+            agent.addSpotSeen(i)
+            if mazeList[i+1] == " ":
+                agent.addSpotSeeing(i+1)
+                agent.addSpotSeen(i+1)
+            i = i - widthLength
 
 # updates the vertical sight(all " ") below the agent
 def updateBottom(mazeList,agent,currentLocation):
     global widthLength
+    if len(mazeList) < (currentLocation + (widthLength*2)+1):
+        return
     i = currentLocation + widthLength
+    # checking to see if the space to the left of you is a space and the space right above it (past the line of walls) so we can
+    # expand the view of the agent to the proper length of the maze halls
+    left = True
+    right = True
+    if (mazeList[currentLocation-1] != " " and mazeList[currentLocation-1] != "1") and (mazeList[(currentLocation+(widthLength))-1] != " " and mazeList[(currentLocation+(widthLength))-1] != "1"):
+        left = False
+    if (mazeList[currentLocation+1] != " " and mazeList[currentLocation+1] != "1") and (mazeList[(currentLocation+(widthLength))+1] != " " and mazeList[(currentLocation+(widthLength))+1] != "1"):
+        right = False
     while i < len(mazeList)-1:
         if mazeList[i] != " " and mazeList[i] != "1":
             break
         agent.addSpotSeeing(i)
         agent.addSpotSeen(i)
         i = i + widthLength
+    if left == True:
+        i = currentLocation + widthLength - 1
+        while i < len(mazeList)-1:
+            if mazeList[i] != " " and mazeList[i] != "1":
+                break
+            agent.addSpotSeeing(i)
+            agent.addSpotSeen(i)
+            if mazeList[i-1] == " ":
+                agent.addSpotSeeing(i-1)
+                agent.addSpotSeen(i-1)
+            i = i + widthLength
+    if right == True:
+        i = currentLocation + widthLength + 1
+        while i < len(mazeList)-1:
+            if mazeList[i] != " " and mazeList[i] != "1":
+                break
+            agent.addSpotSeeing(i)
+            agent.addSpotSeen(i)
+            if mazeList[i+1] == " ":
+                agent.addSpotSeeing(i+1)
+                agent.addSpotSeen(i+1)
+            i = i + widthLength
 
 # updates the horizontal sight(all " ") to the left of the agent
 def updateLeft(mazeList,agent,currentLocation):
@@ -313,22 +377,42 @@ def checkForHiderSight(mazeList,agent):
             agent.opposingAgentLastLocation = i
     return result
 
-# finds the shortest path between the seeker and hider and returns the node that goes towards that path
+# finds the shortest path between the seeker and hider(or last seen) and returns the node that goes towards that path
 def seekerToHider(mazeList,agent,currentLocation,hiderLocation):
     global widthLength
     result = currentLocation
-    # if the hider is above the seeker
-    if hiderLocation < currentLocation and (widthLength <= (currentLocation - hiderLocation)):
-        result = currentLocation - widthLength
-    # if the hider is to the left of the seeker
-    elif hiderLocation < currentLocation and ((currentLocation - hiderLocation) < widthLength):
-        result = currentLocation - 1
-    # if the hider is to the bottom of the seeker
-    elif currentLocation < hiderLocation and (widthLength <= (hiderLocation - currentLocation)):
+    seekerLengthToSlashN = 0
+    hiderLengthToSlashN = 0
+    i = hiderLocation
+    while mazeList[i] != "\n":
+        i = i + 1
+        hiderLengthToSlashN = hiderLengthToSlashN + 1
+    i = currentLocation
+    while mazeList[i] != "\n":
+        i = i + 1
+        seekerLengthToSlashN = seekerLengthToSlashN + 1
+    
+    if hiderLengthToSlashN == seekerLengthToSlashN and currentLocation < hiderLocation:# hider below
         result = currentLocation + widthLength
-    # if the hider is to the right of the seeker
-    elif currentLocation < hiderLocation and ((hiderLocation - currentLocation) < widthLength):
+    elif hiderLengthToSlashN == seekerLengthToSlashN and hiderLocation < currentLocation: # hider above
+        result = currentLocation - widthLength
+    elif hiderLengthToSlashN < seekerLengthToSlashN: # hider to the right
         result = currentLocation + 1
+    elif seekerLengthToSlashN < hiderLengthToSlashN:# hider to the left
+        result = currentLocation - 1
+    
+    # if the hider is above the seeker
+    #if hiderLocation < currentLocation and (widthLength <= (currentLocation - hiderLocation)):
+    #    result = currentLocation - widthLength
+    # if the hider is to the left of the seeker
+    #elif hiderLocation < currentLocation and ((currentLocation - hiderLocation) < widthLength):
+    #    result = currentLocation - 1
+    # if the hider is to the bottom of the seeker
+    #elif currentLocation < hiderLocation and (widthLength <= (hiderLocation - currentLocation)):
+     #   result = currentLocation + widthLength
+    # if the hider is to the right of the seeker
+    #elif currentLocation < hiderLocation and ((hiderLocation - currentLocation) < widthLength):
+    #    result = currentLocation + 1
     #print("seekerToHider returning "+str(result))
     return result
 
@@ -366,8 +450,6 @@ def randomTraverseNewSpotsSight(maze, agent):
             choicesList[choices] = agent.right #mazeList[agent.right] = agent.name
             choices = choices + 1
         choicesList = choicesList[:choices]
-        #print("visited = "+str(agent.spotsVisited))
-        #print(choicesList)
         choice = random.sample(choicesList,1)
         choice = choice[0]
     agent.addSpotVisited(choice)
@@ -400,20 +482,21 @@ if __name__ == '__main__':
 
         # if you press a key it slows down the simulation
         # This only works on Windows        
-        #if msvcrt.kbhit():
-        #    key_stroke = msvcrt.getch()
-        #    print(key_stroke)
-        #    if slowDown == 0:
-        #        slowDown = 1
-        #    else:
-        #        slowDown = 0
+        # if msvcrt.kbhit():
+           # key_stroke = msvcrt.getch()
+           # print(key_stroke)
+           # if slowDown == 0:
+               # slowDown = 1
+           # else:
+               # slowDown = 0
         if slowDown == 0:
             time.sleep(0.06)
         else:
             time.sleep(0.6) # replace with putting this(traverse/keyboardinput)^ in tick from game engine and prints in render(or actual 3d maze)
         
-        print("top = "+str(seeker.top)+"\nbottom = "+str(seeker.bottom)+"\nleft= "+str(seeker.left)+"\nright = "+str(seeker.right)+"\n")
-        print(maze)
+        #print("top = "+str(seeker.top)+"\nbottom = "+str(seeker.bottom)+"\nleft= "+str(seeker.left)+"\nright = "+str(seeker.right)+"\n")
+        #print(maze)
+    print(maze)
     print("Steps Taken = "+str(stepsTaken))
     print("Spots Visited = "+str(seeker.spotsVisited))
     print("Current Location = "+str(seeker.currentLocation))
