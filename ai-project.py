@@ -494,9 +494,8 @@ if __name__ == '__main__':
         else:
             time.sleep(0.6) # replace with putting this(traverse/keyboardinput)^ in tick from game engine and prints in render(or actual 3d maze)
         
-        #print("top = "+str(seeker.top)+"\nbottom = "+str(seeker.bottom)+"\nleft= "+str(seeker.left)+"\nright = "+str(seeker.right)+"\n")
-        #print(maze)
-    print(maze)
+        print("top = "+str(seeker.top)+"\nbottom = "+str(seeker.bottom)+"\nleft= "+str(seeker.left)+"\nright = "+str(seeker.right)+"\n")
+        print(maze)
     print("Steps Taken = "+str(stepsTaken))
     print("Spots Visited = "+str(seeker.spotsVisited))
     print("Current Location = "+str(seeker.currentLocation))
