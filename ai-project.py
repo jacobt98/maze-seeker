@@ -97,6 +97,7 @@ def add_agent_spot(maze,agent,spot):
 
 # just finds a random spot scanning from right to left, bottom to top
 def add_agent_random_spot(maze,agent):
+    global widthLength
     mazeList = list(maze)
     i = len(mazeList)-1
     gettingSpot=0
@@ -104,7 +105,7 @@ def add_agent_random_spot(maze,agent):
         if i <= 0:
             i = len(mazeList)-1
         i = i - 1
-        if mazeList[i] == " " and 30 < randrange(32):
+        if mazeList[i] == " " and 30 < randrange(32): #and mazeList[i-widthLength] == "+":
             gettingSpot=1
     mazeList[i] = agent.name
     maze = "".join(mazeList)
@@ -125,13 +126,13 @@ def agent_reset(agent):
 def checkForHider(mazeList, agent,i):
     global gameComplete
     global widthLength
-    if mazeList[i-widthLength] == "1":# widthLength = 50
+    if i-widthLength < len(mazeList)-1 and 0 <= i -widthLength and mazeList[i-widthLength] == "1":# widthLength = 50
         gameComplete = 1
-    if mazeList[i-1] == "1":
+    if i-1 < len(mazeList)-1 and 0 <= i-1 and mazeList[i-1] == "1":
         gameComplete = 1
-    if mazeList[i+1] == "1":
+    if i+1 < len(mazeList)-1 and 0 <= i+1 and mazeList[i+1] == "1":
         gameComplete = 1
-    if mazeList[i+widthLength] == "1":
+    if i+widthLength < len(mazeList)-1 and 0 <= i+widthLength and mazeList[i+widthLength] == "1":
         gameComplete = 1
 
 # looks around the agent for " " and updates its data accordingly
@@ -384,7 +385,7 @@ def updateLeft(mazeList,agent,currentLocation):
             agent.addSpotSeen(i)
             # possibly delete
             #if mazeList[i-widthLength] == " " or mazeList[i-widthLength] == "1" or mazeList[i-widthLength] == "0":
-            #    agent.addSpotSeeing(i-widthLength)
+             #   agent.addSpotSeeing(i-widthLength)
             #    agent.addSpotSeen(i-widthLength)
             i = i - 1
     if bottom == True:
@@ -427,7 +428,7 @@ def updateRight(mazeList,agent,currentLocation):
             # possibly delete
             #if mazeList[i-widthLength] == " " or mazeList[i-widthLength] == "1" or mazeList[i-widthLength] == "0":
             #    agent.addSpotSeeing(i-widthLength)
-            #    agent.addSpotSeen(i-widthLength)
+             #   agent.addSpotSeen(i-widthLength)
             i = i + 1
     if bottom == True:
         i = currentLocation + widthLength + 1
@@ -437,8 +438,8 @@ def updateRight(mazeList,agent,currentLocation):
             agent.addSpotSeeing(i)
             agent.addSpotSeen(i)
             #if mazeList[i+widthLength] == " " or mazeList[i+widthLength] == "1" or mazeList[i+widthLength] == "0":
-            #    agent.addSpotSeeing(i+widthLength)
-            #    agent.addSpotSeen(i+widthLength)
+             #   agent.addSpotSeeing(i+widthLength)
+             #   agent.addSpotSeen(i+widthLength)
             i = i + 1
 
 # updates the sight of the agent (updates agent.spotsSeen/spotsSeeing)
@@ -459,6 +460,9 @@ def checkForHiderSight(mazeList,agent):
 
 # finds the shortest path between the seeker and hider(or last seen) and returns the node that goes towards that path
 def seekerToHider(mazeList,agent,currentLocation,hiderLocation):
+    if(currentLocation == hiderLocation):
+        agent.opposingAgentLastLocation = -1
+        return currentLocation
     global widthLength
     result = currentLocation
     seekerLengthToSlashN = 0
@@ -471,15 +475,24 @@ def seekerToHider(mazeList,agent,currentLocation,hiderLocation):
     while mazeList[i] != "\n":
         i = i + 1
         seekerLengthToSlashN = seekerLengthToSlashN + 1
-    
-    if agent.bottom != -1 and hiderLengthToSlashN == seekerLengthToSlashN and currentLocation < hiderLocation:# hider below
-        result = currentLocation + widthLength
-    elif agent.top != -1 and hiderLengthToSlashN == seekerLengthToSlashN and hiderLocation < currentLocation: # hider above
-        result = currentLocation - widthLength
-    elif agent.right != -1 and hiderLengthToSlashN < seekerLengthToSlashN: # hider to the right
-        result = currentLocation + 1
-    elif agent.left != -1 and seekerLengthToSlashN < hiderLengthToSlashN:# hider to the left
-        result = currentLocation - 1
+    # if agent.bottom != -1 and seekerLengthToSlashN < hiderLengthToSlashN and currentLocation < hiderLocation  and (mazeList[(currentLocation+widthLength)-1] == "+" or mazeList[(currentLocation+widthLength)-1] == "|"):
+        # result = currentLocation +widthLength
+    # elif agent.bottom != -1 and hiderLengthToSlashN < seekerLengthToSlashN and currentLocation < hiderLocation and (mazeList[(currentLocation+widthLength)+1] == "+" or mazeList[(currentLocation+widthLength)-1] == "|"):
+        # result = currentLocation +widthLength
+    # elif agent.top != -1 and seekerLengthToSlashN < hiderLengthToSlashN and hiderLocation < currentLocation  and (mazeList[(currentLocation+widthLength)-1] == "+" or mazeList[(currentLocation+widthLength)-1] == "|"):
+        # result = currentLocation -widthLength
+    # elif agent.top != -1 and hiderLengthToSlashN < seekerLengthToSlashN and hiderLocation < currentLocation and (mazeList[(currentLocation+widthLength)+1] == "+" or mazeList[(currentLocation+widthLength)-1] == "|"):
+        # result = currentLocation -widthLength
+        
+    if result == currentLocation:
+        if agent.bottom != -1 and (currentLocation+widthLength <= hiderLocation or (hiderLengthToSlashN == seekerLengthToSlashN and currentLocation < hiderLocation)or (seekerLengthToSlashN < hiderLengthToSlashN and currentLocation < hiderLocation)):# hider below
+            result = currentLocation + widthLength
+        elif agent.top != -1 and (hiderLocation+widthLength <= currentLocation or (hiderLengthToSlashN == seekerLengthToSlashN and hiderLocation < currentLocation) or (hiderLengthToSlashN < seekerLengthToSlashN and hiderLocation < currentLocation)): # hider above
+            result = currentLocation - widthLength
+        elif agent.right != -1 and hiderLengthToSlashN < seekerLengthToSlashN: # hider to the right
+            result = currentLocation + 1
+        elif agent.left != -1 and seekerLengthToSlashN < hiderLengthToSlashN:# hider to the left
+            result = currentLocation - 1
     if result == currentLocation:
         if agent.bottom != -1 and currentLocation < hiderLocation:# hider below
             result = currentLocation + widthLength
@@ -489,6 +502,11 @@ def seekerToHider(mazeList,agent,currentLocation,hiderLocation):
             result = currentLocation + 1
         elif agent.left != -1 and hiderLocation < currentLocation:# hider to the left
             result = currentLocation - 1
+            
+    # if we get to the last known location or there is a problem getting there
+    if agent.opposingAgentLastLocation == result:
+        agent.opposingAgentLastLocation = -1
+        
     # if the hider is above the seeker
     #if hiderLocation < currentLocation and (widthLength <= (currentLocation - hiderLocation)):
     #    result = currentLocation - widthLength
@@ -521,6 +539,11 @@ def randomTraverseNewSpotsSight(maze, agent):
     if hiderLocation != 0:
         #print("YESS")
         choice = seekerToHider(mazeList,agent,i,hiderLocation)
+    # if the agent still has a location for the opposing agent, then pursue that location
+    elif agent.opposingAgentLastLocation != -1:
+        #print("HERE! " + str(agent.opposingAgentLastLocation))
+        choice = seekerToHider(mazeList,agent,i,agent.opposingAgentLastLocation)
+        #print("choice= " + str(choice))
     # otherwise, traverse backwards if no new random spots available until one is found
     elif checkForNewSpot(maze,agent) == 0:
         choice = randomTraverseBackwards(agent,i)
