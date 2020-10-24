@@ -3,10 +3,18 @@ import time
 import random
 from random import shuffle, randrange
 
+width = 16 # width of maze
+height = 8 # height of maze
+widthLength = ((width*3)+2) # length of the string width including \n and wall (50)
+#(*3 because "|  " and "+--"; +2 because \n and wall) use less space("+-") to make it *2
+gameComplete = 0 # used to loop the program until the game is complete
+stepsTaken = 0 # count how many steps taken until the seeker finds the hider
+slowDown = 0 # used to slow down the simulation
+
 # Agent class that contains all the information needed for our agents
 class Agent:
     # constructor
-    def __init__(self,name,top,bottom,left,right,currentLocation,opposingAgentLastLocation,spotsVisited,spotsSeen,spotsSeeing):
+    def __init__(self,name,top,bottom,left,right,currentLocation,opposingAgentLastLocation,spotsVisited,spotsSeen,spotsSeeing,maze):
         self.name = name
         self.top = top
         self.bottom = bottom
@@ -17,26 +25,36 @@ class Agent:
         self.spotsSeeing = spotsSeeing
         self.spotsVisited = spotsVisited
         self.spotsSeen = spotsSeen
+        maze = self.fillInBlankMaze(maze)
+        self.maze = maze
 
     # add visited spot to spotsVisited list (uncomment line below to add only if non in list)
     def addSpotVisited(self,spot):
         self.spotsVisited.append(spot) #if spot not in self.spotsVisited else self.spotsVisited
 
     # add visited spot to spotsSeeing list
-    def addSpotSeeing(self,spot):
+    def addSpotSeeing(self,mazeList,spot):
         self.spotsSeeing.append(spot) #if spot not in self.spotsSeeing else self.spotsSeeing
-
-    # add visited spot to spotsSeen list 
-    def addSpotSeen(self,spot):
         self.spotsSeen.append(spot) #if spot not in self.spotsSeen else self.spotsSeen
-
-width = 16 # width of maze
-height = 8 # height of maze
-widthLength = ((width*3)+2) # length of the string width including \n and wall (50)
-#(*3 because "|  " and "+--"; +2 because \n and wall) use less space("+-") to make it *2
-gameComplete = 0 # used to loop the program until the game is complete
-stepsTaken = 0 # count how many steps taken until the seeker finds the hider
-slowDown = 0 # used to slow down the simulation
+        maze = self.maze
+        ourMazeList = list(maze)
+        ourMazeList[spot] = mazeList[spot]
+        self.maze = "".join(ourMazeList)
+        
+    def fillInBlankMaze(self,maze):
+        global widthLength
+        i=0
+        mazeList = list(maze)
+        while i < len(mazeList):
+            # Use this one to destroy walls too
+            if i % widthLength != 0  and (i+2) % widthLength != 0 and (mazeList[i] == " " or mazeList[i] == "|" or mazeList[i] == "1" or mazeList[i] == "0"):
+                mazeList[i] = "-"
+            # Use this one to keep the walls
+            #if mazeList[i] == " " or mazeList[i] == "1" or mazeList[i] == "0":
+             #   mazeList[i] = "-"
+            i = i + 1
+        maze = "".join(mazeList)
+        return maze
 
 # generates a maze
 def make_maze(w = width, h = height):
@@ -274,8 +292,7 @@ def updateTop(mazeList,agent,currentLocation):
     while 0 < i:
         if mazeList[i] != " " and mazeList[i] != "1" and mazeList[i] != "0":
             break
-        agent.addSpotSeeing(i)
-        agent.addSpotSeen(i)
+        agent.addSpotSeeing(mazeList,i)
         i = i - widthLength
     #agent.addSpotSeeing(i) # uncomment these when we add array to agent that includes what's actually seen
     #agent.addSpotSeen(i) # so further path decision making can be made
@@ -294,11 +311,9 @@ def updateTop(mazeList,agent,currentLocation):
         while 0 < i:
             if mazeList[i] != " " and mazeList[i] != "1" and mazeList[i] != "0":
                 break
-            agent.addSpotSeeing(i)
-            agent.addSpotSeen(i)
+            agent.addSpotSeeing(mazeList,i)
             if mazeList[i-1] == " " or mazeList[i-1] == "1"  or mazeList[i-1] == "0":
-                agent.addSpotSeeing(i-1)
-                agent.addSpotSeen(i-1)
+                agent.addSpotSeeing(mazeList,i-1)
             i = i - widthLength
     # we do the same with the right side
     if right == True:
@@ -306,11 +321,9 @@ def updateTop(mazeList,agent,currentLocation):
         while 0 < i:
             if mazeList[i] != " " and mazeList[i] != "1" and mazeList[i] != "0":
                 break
-            agent.addSpotSeeing(i)
-            agent.addSpotSeen(i)
+            agent.addSpotSeeing(mazeList,i)
             if mazeList[i+1] == " " or mazeList[i+1] == "1" or mazeList[i+1] == "0":
-                agent.addSpotSeeing(i+1)
-                agent.addSpotSeen(i+1)
+                agent.addSpotSeeing(mazeList,i+1)
             i = i - widthLength
 
 # updates the vertical sight(all " ") below the agent
@@ -330,8 +343,7 @@ def updateBottom(mazeList,agent,currentLocation):
     while i < len(mazeList)-1:
         if mazeList[i] != " " and mazeList[i] != "1" and mazeList[i] != "0":
             break
-        agent.addSpotSeeing(i)
-        agent.addSpotSeen(i)
+        agent.addSpotSeeing(mazeList,i)
         i = i + widthLength
     #agent.addSpotSeeing(i) # uncomment these when we add array to agent that includes what's actually seen
     #agent.addSpotSeen(i) # so further path decision making can be made
@@ -340,22 +352,18 @@ def updateBottom(mazeList,agent,currentLocation):
         while i < len(mazeList)-1:
             if mazeList[i] != " " and mazeList[i] != "1" and mazeList[i] != "0":
                 break
-            agent.addSpotSeeing(i)
-            agent.addSpotSeen(i)
+            agent.addSpotSeeing(mazeList,i)
             if mazeList[i-1] == " " or mazeList[i-1] == "1" or mazeList[i-1] == "0":
-                agent.addSpotSeeing(i-1)
-                agent.addSpotSeen(i-1)
+                agent.addSpotSeeing(mazeList,i-1)
             i = i + widthLength
     if right == True:
         i = currentLocation + widthLength + 1
         while i < len(mazeList)-1:
             if mazeList[i] != " " and mazeList[i] != "1" and mazeList[i] != "0":
                 break
-            agent.addSpotSeeing(i)
-            agent.addSpotSeen(i)
+            agent.addSpotSeeing(mazeList,i)
             if mazeList[i+1] == " " or mazeList[i+1] == "1" or mazeList[i+1] == "0":
-                agent.addSpotSeeing(i+1)
-                agent.addSpotSeen(i+1)
+                agent.addSpotSeeing(mazeList,i+1)
             i = i + widthLength
 
 # updates the horizontal sight(all " ") to the left of the agent
@@ -371,8 +379,7 @@ def updateLeft(mazeList,agent,currentLocation):
     while mazeList[i] != "|":
         if mazeList[i] != " " and mazeList[i] != "1" and mazeList[i] != "0":
             break
-        agent.addSpotSeeing(i)
-        agent.addSpotSeen(i)
+        agent.addSpotSeeing(mazeList,i)
         i = i - 1
     #agent.addSpotSeeing(i) # uncomment these when we add array to agent that includes what's actually seen
     #agent.addSpotSeen(i) # so further path decision making can be made
@@ -381,8 +388,7 @@ def updateLeft(mazeList,agent,currentLocation):
         while mazeList[i] != "|":
             if mazeList[i] != " " and mazeList[i] != "1" and mazeList[i] != "0":
                 break
-            agent.addSpotSeeing(i)
-            agent.addSpotSeen(i)
+            agent.addSpotSeeing(mazeList,i)
             # possibly delete
             #if mazeList[i-widthLength] == " " or mazeList[i-widthLength] == "1" or mazeList[i-widthLength] == "0":
              #   agent.addSpotSeeing(i-widthLength)
@@ -393,8 +399,7 @@ def updateLeft(mazeList,agent,currentLocation):
         while mazeList[i] != "|":
             if mazeList[i] != " " and mazeList[i] != "1" and mazeList[i] != "0":
                 break
-            agent.addSpotSeeing(i)
-            agent.addSpotSeen(i)
+            agent.addSpotSeeing(mazeList,i)
             #if mazeList[i+widthLength] == " " or mazeList[i+widthLength] == "1" or mazeList[i+widthLength] == "0":
             #    agent.addSpotSeeing(i+widthLength)
             #    agent.addSpotSeen(i+widthLength)
@@ -413,8 +418,7 @@ def updateRight(mazeList,agent,currentLocation):
     while mazeList[i] != "|":
         if mazeList[i] != " " and mazeList[i] != "1" and mazeList[i] != "0":
             break
-        agent.addSpotSeeing(i)
-        agent.addSpotSeen(i)
+        agent.addSpotSeeing(mazeList,i)
         i = i + 1
     #agent.addSpotSeeing(i) # uncomment these when we add array to agent that includes what's actually seen
     #agent.addSpotSeen(i) # so further path decision making can be made
@@ -423,8 +427,7 @@ def updateRight(mazeList,agent,currentLocation):
         while mazeList[i] != "|":
             if mazeList[i] != " " and mazeList[i] != "1" and mazeList[i] != "0":
                 break
-            agent.addSpotSeeing(i)
-            agent.addSpotSeen(i)
+            agent.addSpotSeeing(mazeList,i)
             # possibly delete
             #if mazeList[i-widthLength] == " " or mazeList[i-widthLength] == "1" or mazeList[i-widthLength] == "0":
             #    agent.addSpotSeeing(i-widthLength)
@@ -435,8 +438,7 @@ def updateRight(mazeList,agent,currentLocation):
         while mazeList[i] != "|":
             if mazeList[i] != " " and mazeList[i] != "1" and mazeList[i] != "0":
                 break
-            agent.addSpotSeeing(i)
-            agent.addSpotSeen(i)
+            agent.addSpotSeeing(mazeList,i)
             #if mazeList[i+widthLength] == " " or mazeList[i+widthLength] == "1" or mazeList[i+widthLength] == "0":
              #   agent.addSpotSeeing(i+widthLength)
              #   agent.addSpotSeen(i+widthLength)
@@ -578,8 +580,8 @@ def randomTraverseNewSpotsSight(maze, agent):
 if __name__ == '__main__':
     maze = make_maze()
     #maze = make_entrance(maze)
-    seeker = Agent("0",-1,-1,-1,-1,-1,-1,[],[],[])
-    hider = Agent("1",-1,-1,-1,-1,-1,-1,[],[],[])
+    seeker = Agent("0",-1,-1,-1,-1,-1,-1,[],[],[],maze) #(name,top,bottom,left,right,currentLocation,opposingAgentLastLocation,spotsVisited,spotsSeen,spotsSeeing,mazeList)
+    hider = Agent("1",-1,-1,-1,-1,-1,-1,[],[],[],maze)
     maze = add_agent(maze, seeker)
     maze = add_agent_random_spot(maze,hider)
     while gameComplete == 0:
@@ -608,6 +610,8 @@ if __name__ == '__main__':
         
         print("top = "+str(seeker.top)+"\nbottom = "+str(seeker.bottom)+"\nleft= "+str(seeker.left)+"\nright = "+str(seeker.right)+"\n")
         print(maze)
+        print("AGENT MAZE = ")
+        print(seeker.maze)
     print("Steps Taken = "+str(stepsTaken))
     print("Spots Visited = "+str(seeker.spotsVisited))
     print("Current Location = "+str(seeker.currentLocation))
