@@ -262,8 +262,6 @@ def randomTraverseNewSpots(maze, agent):
             choicesList[choices] = agent.right #mazeList[agent.right] = agent.name
             choices = choices + 1
         choicesList = choicesList[:choices]
-        #print("visited = "+str(agent.spotsVisited))
-        #print(choicesList)
         choice = random.sample(choicesList,1)
         choice = choice[0]
     agent.addSpotVisited(choice)
@@ -505,15 +503,7 @@ def seekerToHider(mazeList,agent,currentLocation,hiderLocation):
     while mazeList[i] != "\n":
         i = i + 1
         seekerLengthToSlashN = seekerLengthToSlashN + 1
-    # if agent.bottom != -1 and seekerLengthToSlashN < hiderLengthToSlashN and currentLocation < hiderLocation  and (mazeList[(currentLocation+widthLength)-1] == "+" or mazeList[(currentLocation+widthLength)-1] == "|"):
-        # result = currentLocation +widthLength
-    # elif agent.bottom != -1 and hiderLengthToSlashN < seekerLengthToSlashN and currentLocation < hiderLocation and (mazeList[(currentLocation+widthLength)+1] == "+" or mazeList[(currentLocation+widthLength)-1] == "|"):
-        # result = currentLocation +widthLength
-    # elif agent.top != -1 and seekerLengthToSlashN < hiderLengthToSlashN and hiderLocation < currentLocation  and (mazeList[(currentLocation+widthLength)-1] == "+" or mazeList[(currentLocation+widthLength)-1] == "|"):
-        # result = currentLocation -widthLength
-    # elif agent.top != -1 and hiderLengthToSlashN < seekerLengthToSlashN and hiderLocation < currentLocation and (mazeList[(currentLocation+widthLength)+1] == "+" or mazeList[(currentLocation+widthLength)-1] == "|"):
-        # result = currentLocation -widthLength
-        
+    
     if result == currentLocation:
         if agent.bottom != -1 and (currentLocation+widthLength <= hiderLocation or (hiderLengthToSlashN == seekerLengthToSlashN and currentLocation < hiderLocation)or (seekerLengthToSlashN < hiderLengthToSlashN and currentLocation < hiderLocation)):# hider below
             result = currentLocation + widthLength
@@ -537,19 +527,6 @@ def seekerToHider(mazeList,agent,currentLocation,hiderLocation):
     if agent.opposingAgentLastLocation == result:
         agent.opposingAgentLastLocation = -1
         
-    # if the hider is above the seeker
-    #if hiderLocation < currentLocation and (widthLength <= (currentLocation - hiderLocation)):
-    #    result = currentLocation - widthLength
-    # if the hider is to the left of the seeker
-    #elif hiderLocation < currentLocation and ((currentLocation - hiderLocation) < widthLength):
-    #    result = currentLocation - 1
-    # if the hider is to the bottom of the seeker
-    #elif currentLocation < hiderLocation and (widthLength <= (hiderLocation - currentLocation)):
-     #   result = currentLocation + widthLength
-    # if the hider is to the right of the seeker
-    #elif currentLocation < hiderLocation and ((hiderLocation - currentLocation) < widthLength):
-    #    result = currentLocation + 1
-    #print("seekerToHider returning "+str(result))
     return result
 
 # same as randomTraverseNewSpots but also has vision along with continuing in a direction until a wall is hit
@@ -602,6 +579,7 @@ def randomTraverseNewSpotsSight(maze, agent):
     maze = "".join(mazeList)
     agent = whatIsAvailable(maze,agent)
     stepsTaken = stepsTaken + 1
+    updateSight(mazeList,agent,choice) #debugging purposes (so we can see what he's seeing with the print)
     return maze
 
 # main
@@ -637,10 +615,10 @@ if __name__ == '__main__':
         else:
             time.sleep(0.6) # replace with putting this(traverse/keyboardinput)^ in tick from game engine and prints in render(or actual 3d maze)
         
-        print("top = "+str(seeker.top)+"\nbottom = "+str(seeker.bottom)+"\nleft= "+str(seeker.left)+"\nright = "+str(seeker.right)+"\n")
-        print(maze)
         print("AGENT MAZE = ")
         print(seeker.maze)
+        print("top = "+str(seeker.top)+"\nbottom = "+str(seeker.bottom)+"\nleft= "+str(seeker.left)+"\nright = "+str(seeker.right)+"\n")
+        print(maze)
     print("Steps Taken = "+str(stepsTaken))
     print("Spots Visited = "+str(seeker.spotsVisited))
     print("Current Location = "+str(seeker.currentLocation))
