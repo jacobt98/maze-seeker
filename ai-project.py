@@ -41,14 +41,18 @@ class Agent:
         ourMazeList[spot] = mazeList[spot]
         self.maze = "".join(ourMazeList)
         
+    # filling in a maze string with "-" instead of spaces (and walls)
     def fillInBlankMaze(self,maze):
         global widthLength
         i=0
         mazeList = list(maze)
         while i < len(mazeList):
-            # Use this one to destroy walls too
-            if i % widthLength != 0  and (i+2) % widthLength != 0 and (mazeList[i] == " " or mazeList[i] == "|" or mazeList[i] == "1" or mazeList[i] == "0"):
-                mazeList[i] = "-"
+            # Use this one to destroy walls and "-"
+            if widthLength<i and i < len(mazeList)-widthLength and i % widthLength != 0  and (i+2) % widthLength != 0 and (mazeList[i] == " " or mazeList[i] == "|" or mazeList[i] == "-" or mazeList[i] == "1" or mazeList[i] == "0"):
+                mazeList[i] = "~" #or use "-"
+            # Use this one to destroy walls 
+            #if i % widthLength != 0  and (i+2) % widthLength != 0 and (mazeList[i] == " " or mazeList[i] == "|" or mazeList[i] == "1" or mazeList[i] == "0"):
+            #    mazeList[i] = "~"
             # Use this one to keep the walls
             #if mazeList[i] == " " or mazeList[i] == "1" or mazeList[i] == "0":
              #   mazeList[i] = "-"
@@ -294,7 +298,7 @@ def updateTop(mazeList,agent,currentLocation):
             break
         agent.addSpotSeeing(mazeList,i)
         i = i - widthLength
-    #agent.addSpotSeeing(i) # uncomment these when we add array to agent that includes what's actually seen
+    agent.addSpotSeeing(mazeList,i) # uncomment these when we add array to agent that includes what's actually seen
     #agent.addSpotSeen(i) # so further path decision making can be made
         
     # then we add the spaces to the left and above the agent (there's two spaces in vertical hallways) this also
@@ -312,9 +316,12 @@ def updateTop(mazeList,agent,currentLocation):
             if mazeList[i] != " " and mazeList[i] != "1" and mazeList[i] != "0":
                 break
             agent.addSpotSeeing(mazeList,i)
-            if mazeList[i-1] == " " or mazeList[i-1] == "1"  or mazeList[i-1] == "0":
-                agent.addSpotSeeing(mazeList,i-1)
+            agent.addSpotSeeing(mazeList,i-1)
+            # if mazeList[i-1] == " " or mazeList[i-1] == "1"  or mazeList[i-1] == "0":
+                # agent.addSpotSeeing(mazeList,i-1)
             i = i - widthLength
+        agent.addSpotSeeing(mazeList,i) # uncomment these when we add array to agent that includes what's actually seen
+        agent.addSpotSeeing(mazeList,i-1) # uncomment these when we add array to agent that includes what's actually seen
     # we do the same with the right side
     if right == True:
         i = currentLocation - widthLength +1
@@ -322,9 +329,12 @@ def updateTop(mazeList,agent,currentLocation):
             if mazeList[i] != " " and mazeList[i] != "1" and mazeList[i] != "0":
                 break
             agent.addSpotSeeing(mazeList,i)
-            if mazeList[i+1] == " " or mazeList[i+1] == "1" or mazeList[i+1] == "0":
-                agent.addSpotSeeing(mazeList,i+1)
+            agent.addSpotSeeing(mazeList,i+1)
+            #if mazeList[i+1] == " " or mazeList[i+1] == "1" or mazeList[i+1] == "0":
+            #    agent.addSpotSeeing(mazeList,i+1)
             i = i - widthLength
+        agent.addSpotSeeing(mazeList,i) # uncomment these when we add array to agent that includes what's actually seen
+        agent.addSpotSeeing(mazeList,i+1) # uncomment these when we add array to agent that includes what's actually seen
 
 # updates the vertical sight(all " ") below the agent
 def updateBottom(mazeList,agent,currentLocation):
@@ -345,7 +355,7 @@ def updateBottom(mazeList,agent,currentLocation):
             break
         agent.addSpotSeeing(mazeList,i)
         i = i + widthLength
-    #agent.addSpotSeeing(i) # uncomment these when we add array to agent that includes what's actually seen
+    agent.addSpotSeeing(mazeList,i) # uncomment these when we add array to agent that includes what's actually seen
     #agent.addSpotSeen(i) # so further path decision making can be made
     if left == True:
         i = currentLocation + widthLength - 1
@@ -353,18 +363,24 @@ def updateBottom(mazeList,agent,currentLocation):
             if mazeList[i] != " " and mazeList[i] != "1" and mazeList[i] != "0":
                 break
             agent.addSpotSeeing(mazeList,i)
-            if mazeList[i-1] == " " or mazeList[i-1] == "1" or mazeList[i-1] == "0":
-                agent.addSpotSeeing(mazeList,i-1)
+            agent.addSpotSeeing(mazeList,i-1)
+            #if mazeList[i-1] == " " or mazeList[i-1] == "1" or mazeList[i-1] == "0":
+            #    agent.addSpotSeeing(mazeList,i-1)
             i = i + widthLength
+        agent.addSpotSeeing(mazeList,i) # uncomment these when we add array to agent that includes what's actually seen
+        agent.addSpotSeeing(mazeList,i-1) # uncomment these when we add array to agent that includes what's actually seen
     if right == True:
         i = currentLocation + widthLength + 1
         while i < len(mazeList)-1:
             if mazeList[i] != " " and mazeList[i] != "1" and mazeList[i] != "0":
                 break
             agent.addSpotSeeing(mazeList,i)
-            if mazeList[i+1] == " " or mazeList[i+1] == "1" or mazeList[i+1] == "0":
-                agent.addSpotSeeing(mazeList,i+1)
+            agent.addSpotSeeing(mazeList,i+1)
+            #if mazeList[i+1] == " " or mazeList[i+1] == "1" or mazeList[i+1] == "0":
+            #    agent.addSpotSeeing(mazeList,i+1)
             i = i + widthLength
+        agent.addSpotSeeing(mazeList,i) # uncomment these when we add array to agent that includes what's actually seen
+        agent.addSpotSeeing(mazeList,i+1) # uncomment these when we add array to agent that includes what's actually seen
 
 # updates the horizontal sight(all " ") to the left of the agent
 def updateLeft(mazeList,agent,currentLocation):
@@ -380,8 +396,12 @@ def updateLeft(mazeList,agent,currentLocation):
         if mazeList[i] != " " and mazeList[i] != "1" and mazeList[i] != "0":
             break
         agent.addSpotSeeing(mazeList,i)
+        agent.addSpotSeeing(mazeList,i-widthLength)
+        agent.addSpotSeeing(mazeList,i+widthLength)
         i = i - 1
-    #agent.addSpotSeeing(i) # uncomment these when we add array to agent that includes what's actually seen
+    agent.addSpotSeeing(mazeList,i) # uncomment these when we add array to agent that includes what's actually seen
+    agent.addSpotSeeing(mazeList,i-widthLength) # uncomment these when we add array to agent that includes what's actually seen
+    agent.addSpotSeeing(mazeList,i+widthLength) # uncomment these when we add array to agent that includes what's actually seen
     #agent.addSpotSeen(i) # so further path decision making can be made
     if top == True:
         i = currentLocation - widthLength - 1
@@ -394,6 +414,7 @@ def updateLeft(mazeList,agent,currentLocation):
              #   agent.addSpotSeeing(i-widthLength)
             #    agent.addSpotSeen(i-widthLength)
             i = i - 1
+        agent.addSpotSeeing(mazeList,i) # uncomment these when we add array to agent that includes what's actually seen
     if bottom == True:
         i = currentLocation + widthLength - 1
         while mazeList[i] != "|":
@@ -404,6 +425,7 @@ def updateLeft(mazeList,agent,currentLocation):
             #    agent.addSpotSeeing(i+widthLength)
             #    agent.addSpotSeen(i+widthLength)
             i = i - 1
+        agent.addSpotSeeing(mazeList,i) # uncomment these when we add array to agent that includes what's actually seen
 
 # updates the horizontal sight(all " ") to the right of the agent
 def updateRight(mazeList,agent,currentLocation):
@@ -419,8 +441,12 @@ def updateRight(mazeList,agent,currentLocation):
         if mazeList[i] != " " and mazeList[i] != "1" and mazeList[i] != "0":
             break
         agent.addSpotSeeing(mazeList,i)
+        agent.addSpotSeeing(mazeList,i-widthLength)
+        agent.addSpotSeeing(mazeList,i+widthLength)
         i = i + 1
-    #agent.addSpotSeeing(i) # uncomment these when we add array to agent that includes what's actually seen
+    agent.addSpotSeeing(mazeList,i) # uncomment these when we add array to agent that includes what's actually seen
+    agent.addSpotSeeing(mazeList,i-widthLength) # uncomment these when we add array to agent that includes what's actually seen
+    agent.addSpotSeeing(mazeList,i+widthLength) # uncomment these when we add array to agent that includes what's actually seen
     #agent.addSpotSeen(i) # so further path decision making can be made
     if top == True:
         i = currentLocation - widthLength + 1
@@ -433,6 +459,7 @@ def updateRight(mazeList,agent,currentLocation):
             #    agent.addSpotSeeing(i-widthLength)
              #   agent.addSpotSeen(i-widthLength)
             i = i + 1
+        agent.addSpotSeeing(mazeList,i) # uncomment these when we add array to agent that includes what's actually seen
     if bottom == True:
         i = currentLocation + widthLength + 1
         while mazeList[i] != "|":
@@ -443,6 +470,7 @@ def updateRight(mazeList,agent,currentLocation):
              #   agent.addSpotSeeing(i+widthLength)
              #   agent.addSpotSeen(i+widthLength)
             i = i + 1
+        agent.addSpotSeeing(mazeList,i) # uncomment these when we add array to agent that includes what's actually seen
 
 # updates the sight of the agent (updates agent.spotsSeen/spotsSeeing)
 def updateSight(mazeList,agent,currentLocation):
@@ -584,6 +612,7 @@ if __name__ == '__main__':
     hider = Agent("1",-1,-1,-1,-1,-1,-1,[],[],[],maze)
     maze = add_agent(maze, seeker)
     maze = add_agent_random_spot(maze,hider)
+    updateSight(list(maze),seeker,seeker.currentLocation)
     while gameComplete == 0:
         # Random search
         #maze = randomTraverse(maze,seeker)
