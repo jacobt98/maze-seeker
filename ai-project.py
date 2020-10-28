@@ -684,7 +684,7 @@ def randomTraverseNewSpotsSight(maze, agent):
     return maze
 
 # Performs a random search until it finds the hiding agent, then it will use A* searching algorithm to find the best path to the hiders last known location    
-def randomTraverseUniformCostSeek(maze, agent, path):
+def randomTraverseUniformCostSeek(maze, agent):
     global stepsTaken
     mazeList = list(maze)
     i = 0
@@ -695,14 +695,37 @@ def randomTraverseUniformCostSeek(maze, agent, path):
     agent = whatIsAvailable(maze,agent)
     agent.spotsSeeing.clear()
     updateSight(mazeList,agent,i)
-    hiderLocation = checkForHiderSight(mazeList,agent)
-    if path != []:
-        for spot in path:
-            if spot.location == i:
-                index = path.index(spot)
-                choice = path[index+1]
-                break
-        choice = choice.location
+    checkForHiderSight(mazeList,agent)
+    if agent.path != []:
+        if agent.currentLocation != agent.path[len(agent.path)-1].location:
+            for spot in agent.path:
+                if spot.location == i:
+                    index = agent.path.index(spot)
+                    choice = agent.path[index+1]
+                    break
+            choice = choice.location
+        else:
+            agent.path = []
+    # otherwise, traverse backwards if no new random spots available until one is found
+    elif checkForNewSpot(maze,agent) == 0:
+        choice = randomTraverseBackwards(agent,i)
+    # else we choose a random path by gathering what's available 
+    else:
+        if agent.top != -1 and agent.top not in agent.spotsVisited:
+            choicesList[choices] = agent.top # if spot available add this to our list
+            choices = choices + 1
+        if agent.bottom != -1 and agent.bottom not in agent.spotsVisited:
+            choicesList[choices] = agent.bottom # so we can choose between what's available
+            choices = choices + 1
+        if agent.left != -1 and agent.left not in agent.spotsVisited:
+            choicesList[choices] = agent.left # [old code below v]
+            choices = choices + 1
+        if agent.right != -1 and agent.right not in agent.spotsVisited:
+            choicesList[choices] = agent.right #mazeList[agent.right] = agent.name
+            choices = choices + 1
+        choicesList = choicesList[:choices]
+        choice = random.sample(choicesList,1)
+        choice = choice[0]
         
     agent.addSpotVisited(choice)
     mazeList[i] = " "
@@ -724,7 +747,7 @@ if __name__ == '__main__':
     maze = add_agent(maze, seeker)
     maze = add_agent_random_spot(maze,hider)
     updateSight(list(maze),seeker,seeker.currentLocation)
-    testing = uniformCostPath(list(maze),seeker.currentLocation,hider.currentLocation)
+    #testing = uniformCostPath(list(maze),seeker.currentLocation,hider.currentLocation)
     while gameComplete == 0:
         # Random search
         #maze = randomTraverse(maze,seeker)
@@ -736,7 +759,7 @@ if __name__ == '__main__':
         #maze = randomTraverseNewSpotsSight(maze,seeker) 
 
         # Random search with uniform cost path seeking 
-        maze = randomTraverseUniformCostSeek(maze,seeker,testing) 
+        maze = randomTraverseUniformCostSeek(maze,seeker) 
 
         # if you press a key it slows down the simulation
         # This only works on Windows        
@@ -761,5 +784,5 @@ if __name__ == '__main__':
         print("top = "+str(seeker.top)+"\nbottom = "+str(seeker.bottom)+"\nleft= "+str(seeker.left)+"\nright = "+str(seeker.right)+"\n")
         print(maze)
     print("Steps Taken = "+str(stepsTaken))
-    print("Spots Visited = "+str(seeker.spotsVisited))
-    print("Current Location = "+str(seeker.currentLocation))
+    #print("Spots Visited = "+str(seeker.spotsVisited))
+    #print("Current Location = "+str(seeker.currentLocation))
