@@ -3,19 +3,32 @@ import sys
 import time
 import random
 from random import shuffle, randrange
+import pandas as pd
+import numpy as np
+from sklearn import preprocessing
+from sklearn import linear_model
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import mean_squared_error
 
 width = 16 # width of maze
 height = 8 # height of maze
 widthLength = ((width*3)+2) # length of the string width including \n and wall (50)
 #(*3 because "|  " and "+--"; +2 because \n and wall) use less space("+-") to make it *2
 gameComplete = 0 # used to loop the program until the game is complete
+rounds = 0 # used to know how many rounds the agents have gone through
 stepsTaken = 0 # count how many steps taken until the seeker finds the hider
+allAvailableSpaces = 0 # used to find out if the hider should continue discovering
+maxHiderSteps = 200 # how many steps the hider can take
+hiderSteps = 0 # how many steps the hider has taken before the hunt begins
+hiderDiscoveryMode = 0 # used to determine if the hider should continue to look for spots
+hiderHiding = 0 # used to place the seeker in once the hider is finished
 slowDown = 0 # used to slow down the simulation
 
 # Agent class that contains all the information needed for our agents
 class Agent:
     # constructor
-    def __init__(self,name,top,bottom,left,right,currentLocation,opposingAgentLastLocation,spotsVisited,spotsSeen,spotsSeeing,path,maze):
+    def __init__(self,name,top,bottom,left,right,currentLocation,opposingAgentLastLocation,wallsAroundAgent,stepsFromEntrance,pathDecisionChoicesFromEntrance,spotsVisited,spotsSeen,spotsSeeing,path,maze):
         self.name = name
         self.top = top
         self.bottom = bottom
@@ -23,6 +36,9 @@ class Agent:
         self.left = left
         self.currentLocation = currentLocation
         self.opposingAgentLastLocation = opposingAgentLastLocation
+        self.wallsAroundAgent = wallsAroundAgent
+        self.stepsFromEntrance = stepsFromEntrance
+        self.pathDecisionChoicesFromEntrance = pathDecisionChoicesFromEntrance
         self.spotsSeeing = spotsSeeing
         self.spotsVisited = spotsVisited
         self.spotsSeen = spotsSeen
@@ -171,6 +187,74 @@ def agent_reset(agent):
     agent.right = -1
     return agent
 
+def remove_seeker(maze):
+    i=0
+    mazeList = list(maze)
+    while i < len(mazeList):
+        # Use this one to destroy walls and "-"
+        if widthLength<i and i < len(mazeList)-widthLength and i % widthLength != 0  and (i+2) % widthLength != 0 and (mazeList[i] == "0"):
+            mazeList[i] = " " #or use "-"
+        i = i + 1
+    maze = "".join(mazeList)
+    return maze
+        
+# finds out how many spaces there are in the maze given
+def spotsKnown(maze):
+    global widthLength
+    i=0
+    spotsKnown = 0
+    mazeList = list(maze)
+    while i < len(mazeList):
+        # Use this one to destroy walls and "-"
+        if widthLength<i and i < len(mazeList)-widthLength and i % widthLength != 0  and (i+2) % widthLength != 0 and (mazeList[i] == " "):
+            spotsKnown = spotsKnown + 1
+        i = i + 1
+    return spotsKnown
+    
+# finds the number of walls around a location
+def wallsAround(maze,currentLocation):
+    global widthLength
+    mazeList = list(maze)
+    numberOfWalls = 0
+    if widthLength<currentLocation and currentLocation < len(mazeList)-widthLength and currentLocation% widthLength != 0  and (currentLocation+2) % widthLength != 0 and mazeList[currentLocation + 1] != " ":
+        numberOfWalls = numberOfWalls + 1
+    if widthLength<currentLocation and currentLocation < len(mazeList)-widthLength and currentLocation % widthLength != 0  and (currentLocation+2) % widthLength != 0 and mazeList[currentLocation - 1] != " ":
+        numberOfWalls = numberOfWalls + 1
+    if widthLength<currentLocation and currentLocation < len(mazeList)-widthLength and currentLocation % widthLength != 0  and (currentLocation+2) % widthLength != 0 and mazeList[currentLocation +widthLength] != " ":
+        numberOfWalls = numberOfWalls + 1
+    if widthLength<currentLocation and currentLocation < len(mazeList)-widthLength and currentLocation % widthLength != 0  and (currentLocation+2) % widthLength != 0 and mazeList[currentLocation -widthLength] != " ":
+        numberOfWalls = numberOfWalls + 1
+    return numberOfWalls
+    
+# finds the number of steps from a location to the entrance of the maze
+def stepsFromEntranceFunc(maze,currentLocation):
+    path = uniformCostPath(list(maze), currentLocation, 51)
+    length = len(path)
+    return length
+
+# finds all the path decision choices leading up to a location from the beginning of the maze
+def pathDecisionChoicesFromEntranceFun(maze,currentLocation):
+    global widthLength
+    mazeList = list(maze)
+    path = uniformCostPath(mazeList, currentLocation, 51)
+    pathDecisions = 0
+    spaces = 0
+    for spot in path:
+        if mazeList[spot.location+1] == " " and widthLength<spot.location and spot.location < len(mazeList)-widthLength and spot.location % widthLength != 0  and (spot.location+2) % widthLength != 0:
+            spaces = spaces + 1
+        if mazeList[spot.location-1] == " " and widthLength<spot.location and spot.location < len(mazeList)-widthLength and spot.location % widthLength != 0  and (spot.location+2) % widthLength != 0:
+            spaces = spaces + 1
+        if mazeList[spot.location+widthLength] == " " and widthLength<spot.location and spot.location < len(mazeList)-widthLength and spot.location % widthLength != 0  and (spot.location+2) % widthLength != 0:
+            spaces = spaces + 1
+        if mazeList[spot.location-widthLength] == " " and widthLength<spot.location and spot.location < len(mazeList)-widthLength and spot.location % widthLength != 0  and (spot.location+2) % widthLength != 0:
+            spaces = spaces + 1
+        if 2 < spaces:
+            pathDecisions = pathDecisions + 1
+        if 3 < spaces:
+            pathDecisions = pathDecisions + 1
+        spaces = 0
+    return pathDecisions
+    
 # checks around the seeker for the hider, if found gameComplete = 1 and the game is over
 def checkForHider(mazeList, agent,i):
     global gameComplete
@@ -683,7 +767,7 @@ def randomTraverseNewSpotsSight(maze, agent):
     updateSight(mazeList,agent,choice) #debugging purposes (so we can see what he's seeing with the print)
     return maze
 
-# Performs a random search until it finds the hiding agent, then it will use A* searching algorithm to find the best path to the hiders last known location    
+# Performs a random search until it finds the hiding agent, then it will use uniform cost searching algorithm to find the best path to the hiders last known location    
 def randomTraverseUniformCostSeek(maze, agent):
     global stepsTaken
     mazeList = list(maze)
@@ -696,16 +780,21 @@ def randomTraverseUniformCostSeek(maze, agent):
     agent.spotsSeeing.clear()
     updateSight(mazeList,agent,i)
     checkForHiderSight(mazeList,agent)
-    if agent.path != []:
-        if agent.currentLocation != agent.path[len(agent.path)-1].location:
-            for spot in agent.path:
-                if spot.location == i:
-                    index = agent.path.index(spot)
-                    choice = agent.path[index+1]
-                    break
-            choice = choice.location
-        else:
+    # making sure we haven't reached the end of our path if the agent has one
+    if agent.path != [] and agent.currentLocation == agent.path[len(agent.path)-1].location:
             agent.path = []
+    # if our agent has a path then that's our first priority for a means of traversing
+    if agent.path != []:
+        for spot in agent.path:
+            if spot.location == i:
+                index = agent.path.index(spot)
+                choice = agent.path[index+1]
+                break
+        try:
+            choice = choice.location
+        except:
+            agent.path = []
+            choice = i
     # otherwise, traverse backwards if no new random spots available until one is found
     elif checkForNewSpot(maze,agent) == 0:
         choice = randomTraverseBackwards(agent,i)
@@ -737,30 +826,568 @@ def randomTraverseUniformCostSeek(maze, agent):
     stepsTaken = stepsTaken + 1
     updateSight(mazeList,agent,choice) #debugging purposes (so we can see what he's seeing with the print)
     return maze
+    
+# Finding out which spots in our maze is the best according to our trained data    
+def decideBestHidingSpot(maze, agent, model):
+    global widthLength
+    mazeList = list(maze)
+    i = 0
+    dataList = []
+    dataListICorrespondent = []
+    predictedList = {}
+    while i < len(mazeList):
+        # Use this 
+        if widthLength<i and i < len(mazeList)-widthLength and i % widthLength != 0  and (i+2) % widthLength != 0 and (mazeList[i] == " " ):
+            dataList.append(wallsAround(maze,i))
+            dataList.append(stepsFromEntranceFunc(maze,i))
+            dataList.append(pathDecisionChoicesFromEntranceFun(maze,i))
+            dataListICorrespondent.append(i)
+        i = i + 1
+    dataList = np.reshape(dataList, (-1, 3))
+    dataList = preprocessing.StandardScaler().fit(dataList).transform(dataList)
+    y_pred = model.predict(dataList)
+    #maxPos = np.where(y_pred == np.amax(y_pred))
+    #aInteger = ",".join(maxPos[0])
+    i = 0
+    location = agent.currentLocation
+    # finding the largest prediction
+    for prediction in y_pred:
+        if prediction == np.amax(y_pred):
+            location = dataListICorrespondent[i]
+        i = i + 1
+    #print(y_pred)
+    #print(np.amax(y_pred))
+    #print(location)
+    return location
+    
+# Traverse function for the hider to discover spots and hide
+def discoveryHiderTraverse(maze, agent, model):
+    global hiderSteps
+    global rounds
+    global allAvailableSpaces
+    mazeList = list(maze)
+    i = 0
+    choices = 0
+    choicesList = [-1,-1,-1,-1]
+    while i < len(mazeList) and mazeList[i] != agent.name:
+        i = i + 1
+    agent = whatIsAvailable(maze,agent)
+    agent.spotsSeeing.clear()
+    updateSight(mazeList,agent,i)
+    #print("agent path = "+str(agent.path))
+    #print("agent location = "+str(agent.currentLocation))
+    allAvailableSpacesby10 = allAvailableSpaces / 10
+    # checking to see if we know enough spots to determine where to hider
+    if agent.path == [] and ((100 * (rounds+1) <= int(spotsKnown(agent.maze))) or (int(spotsKnown(agent.maze))+allAvailableSpacesby10 >= allAvailableSpaces)):
+        agent.path = uniformCostPath(list(agent.maze), agent.currentLocation, decideBestHidingSpot(agent.maze,agent, model))
+    #decideBestHidingSpot(agent.maze,agent, model)
+    
+    # making sure we haven't reached the end of our path if the agent has one
+    if agent.path != [] and agent.currentLocation == agent.path[len(agent.path)-1].location:
+            hiderSteps = maxHiderSteps
+            agent.path = []
+    # if our agent has a path then that's our first priority for a means of traversing
+    if agent.path != []:
+        for spot in agent.path:
+            if spot.location == i:
+                index = agent.path.index(spot)
+                choice = agent.path[index+1]
+                break
+        try:
+            choice = choice.location
+        except:
+            print("HEREERERE")
+            agent.path = []
+            choice = i
+    # otherwise, traverse backwards if no new random spots available until one is found
+    elif checkForNewSpot(maze,agent) == 0:
+        choice = randomTraverseBackwards(agent,i)
+        if choice == 51:
+            agent.maze = maze
+    # else we choose a random path by gathering what's available 
+    else:
+        if agent.top != -1 and agent.top not in agent.spotsVisited:
+            choicesList[choices] = agent.top # if spot available add this to our list
+            choices = choices + 1
+        if agent.bottom != -1 and agent.bottom not in agent.spotsVisited:
+            choicesList[choices] = agent.bottom # so we can choose between what's available
+            choices = choices + 1
+        if agent.left != -1 and agent.left not in agent.spotsVisited:
+            choicesList[choices] = agent.left # [old code below v]
+            choices = choices + 1
+        if agent.right != -1 and agent.right not in agent.spotsVisited:
+            choicesList[choices] = agent.right #mazeList[agent.right] = agent.name
+            choices = choices + 1
+        choicesList = choicesList[:choices]
+        choice = random.sample(choicesList,1)
+        choice = choice[0]
+        
+    agent.addSpotVisited(choice)
+    mazeList[i] = " "
+    mazeList[choice] = agent.name
+    agent.currentLocation = choice
+    agent = agent_reset(agent)
+    maze = "".join(mazeList)
+    agent = whatIsAvailable(maze,agent)
+    hiderSteps = hiderSteps + 1
+    
+    #agent.wallsAround(maze)
+    #if agent.wallsAroundAgent == 3:
+     #   hiderSteps = maxHiderSteps
+    if maxHiderSteps <= hiderSteps: 
+        agent.stepsFromEntrance = stepsFromEntranceFunc(maze,agent.currentLocation)
+        agent.wallsAroundAgent = wallsAround(maze,agent.currentLocation)
+        agent.pathDecisionChoicesFromEntrance = pathDecisionChoicesFromEntranceFun(maze,agent.currentLocation)
+        #print("walls around agent = "+str(agent.wallsAroundAgent))
+        #print("steps from entrance = "+str(agent.stepsFromEntrance))
+        #print("path decision choices from entrance = "+str(agent.pathDecisionChoicesFromEntrance))
+    updateSight(mazeList,agent,choice) #debugging purposes (so we can see what he's seeing with the print)
+    return maze
+
+# looks for a new path above the agent
+def topPath(mazeList,agent,currentLocation):
+    global widthLength
+    if (currentLocation - (widthLength*2)-1) <= 0:
+        return -1
+    if mazeList[currentLocation-widthLength] != " ":
+        return -1
+    i = currentLocation - widthLength
+    # checking to see if the space to the left of you is a space and the space right above it (past the line of walls) so we can
+    # expand the view of the agent to the proper length of the maze halls
+    left = True
+    right = True
+    leftBound = False
+    rightBound = False
+    # here we make sure the spaces to the left or right are empty along with the ones right above so we can
+    # use this line of sight. If there is something obstructing right here then we don't even expand this way
+    #if (mazeList[currentLocation-1] != " " and mazeList[currentLocation-1] != "1" and mazeList[currentLocation-1] != "0") and (mazeList[(currentLocation-(widthLength))-1] != " " and mazeList[(currentLocation-(widthLength))-1] != "1" and mazeList[(currentLocation-(widthLength))-1] != "0"):
+    if mazeList[currentLocation-1] != " " and mazeList[currentLocation-widthLength-1] != " ":
+        leftBound = True
+    #if (mazeList[currentLocation+1] != " " and mazeList[currentLocation+1] != "1" and mazeList[currentLocation+1] != "0") and (mazeList[(currentLocation-(widthLength))+1] != " " and mazeList[(currentLocation-(widthLength))+1] != "1" and mazeList[(currentLocation-(widthLength))+1] != "0"):
+    if mazeList[currentLocation+1] != " " and mazeList[currentLocation-widthLength+1] != " ":    
+        rightBound = True
+        
+    if left == True:
+        i = currentLocation - widthLength
+        while 0 < i:
+            if mazeList[i] != " " and mazeList[i] != "1" and mazeList[i] != "0":
+                break
+            # if there is a path to the left above
+            if leftBound:
+                if mazeList[i-1] == " " and i-1 not in agent.spotsVisited:
+                    return i-1
+            else:
+                if mazeList[i-2] == " " and i-2 not in agent.spotsVisited:
+                    return i-2
+            # if mazeList[i-1] == " " or mazeList[i-1] == "1"  or mazeList[i-1] == "0":
+                # agent.addSpotSeeing(mazeList,i-1)
+            i = i - widthLength
+        # if there is a path to the left above the 
+        if leftBound:
+            if mazeList[i-1] == " " and i-1 not in agent.spotsVisited:
+                return i-1
+        else:
+            if mazeList[i-2] == " " and i-2 not in agent.spotsVisited:
+                return i-2
+    # we do the same with the right side
+    if right == True:
+        i = currentLocation - widthLength
+        while 0 < i:
+            if mazeList[i] != " " and mazeList[i] != "1" and mazeList[i] != "0":
+                break
+            # if there is a path to the right above 
+            if rightBound:
+                if mazeList[i+1] == " " and i+1 not in agent.spotsVisited:
+                    return i+1
+            else:
+                if mazeList[i+2] == " " and i+2 not in agent.spotsVisited:
+                    return i+2
+            #if mazeList[i+1] == " " or mazeList[i+1] == "1" or mazeList[i+1] == "0":
+            #    agent.addSpotSeeing(mazeList,i+1)
+            i = i - widthLength
+        if rightBound:
+            if mazeList[i+1] == " " and i+1 not in agent.spotsVisited:
+                return i+1
+        else:
+            if mazeList[i+2] == " " and i+2 not in agent.spotsVisited:
+                return i+2
+    return -1
+
+# looks for a new path below the agent
+def bottomPath(mazeList,agent,currentLocation):
+    global widthLength
+    if len(mazeList) < (currentLocation + (widthLength*2)+1):
+        return -1
+    if mazeList[currentLocation+widthLength] != " ":
+        return -1
+    i = currentLocation + widthLength
+    # checking to see if the space to the left of you is a space and the space right above it (past the line of walls) so we can
+    # expand the view of the agent to the proper length of the maze halls
+    left = True
+    right = True
+    leftBound = False
+    rightBound = False
+    #if (mazeList[currentLocation-1] != " " and mazeList[currentLocation-1] != "1" and mazeList[currentLocation-1] != "0") and (mazeList[(currentLocation+(widthLength))-1] != " " and mazeList[(currentLocation+(widthLength))-1] != "1"and mazeList[(currentLocation+(widthLength))-1] != "0"):
+    if mazeList[currentLocation-1] != " " and mazeList[currentLocation+widthLength-1] != " ":    
+        leftBound = True
+    #if (mazeList[currentLocation+1] != " " and mazeList[currentLocation+1] != "1" and mazeList[currentLocation+1] != "0") and (mazeList[(currentLocation+(widthLength))+1] != " " and mazeList[(currentLocation+(widthLength))+1] != "1" and mazeList[(currentLocation+(widthLength))+1] != "0"):
+    if mazeList[currentLocation+1] != " " and mazeList[currentLocation+widthLength+1] != " ":        
+        rightBound = True
+        
+    if left == True:
+        i = currentLocation + widthLength
+        while i < len(mazeList)-1:
+            if mazeList[i] != " " and mazeList[i] != "1" and mazeList[i] != "0":
+                break
+            # if there is a path to the left below  
+            if leftBound:
+                if mazeList[i - 1] == " " and i - 1 not in agent.spotsVisited:
+                    return i - 1
+            else:
+                if mazeList[i-2] == " " and i-2 not in agent.spotsVisited:
+                    return i-2
+            #if mazeList[i-1] == " " or mazeList[i-1] == "1" or mazeList[i-1] == "0":
+            #    agent.addSpotSeeing(mazeList,i-1)
+            i = i + widthLength
+        # if there is a path to the left below 
+        if leftBound:
+            if mazeList[i-1] == " " and i-1 not in agent.spotsVisited:
+                return i-1
+        else:
+            if mazeList[i-2] == " " and i-2 not in agent.spotsVisited:
+                return i-2
+            
+    if right == True:
+        i = currentLocation + widthLength
+        while i < len(mazeList)-1:
+            if mazeList[i] != " " and mazeList[i] != "1" and mazeList[i] != "0":
+                break
+            # if there is a path to the right below  
+            if rightBound:
+                if mazeList[i+1] == " " and i+1 not in agent.spotsVisited:
+                    return i+1
+            else:
+                if mazeList[i+2] == " " and i+2 not in agent.spotsVisited:
+                    return i+2
+            #if mazeList[i+1] == " " or mazeList[i+1] == "1" or mazeList[i+1] == "0":
+            #    agent.addSpotSeeing(mazeList,i+1)
+            i = i + widthLength
+        # if there is a path to the right below
+        if rightBound:  
+            if mazeList[i+1] == " " and i+1 not in agent.spotsVisited:
+                return i+1
+        else:
+            if mazeList[i+2] == " " and i+2 not in agent.spotsVisited:
+                return i+2
+    return -1
+
+# looks for a path to the left of the agent
+def leftPath(mazeList,agent,currentLocation):
+    if mazeList[currentLocation-1] != " " or mazeList[currentLocation-2] != " ":
+        return -1
+    global widthLength
+    i = currentLocation - 1
+    top = True
+    bottom = True
+    #if (mazeList[currentLocation-widthLength] != " " and mazeList[currentLocation-widthLength] != "1" and mazeList[currentLocation-widthLength] != "0") and (mazeList[(currentLocation-(widthLength))-1] != " " and mazeList[(currentLocation-(widthLength))-1] != "1"and mazeList[(currentLocation-(widthLength))-1] != "0"):
+    #    top = False
+    #if (mazeList[currentLocation+widthLength] != " " and mazeList[currentLocation+widthLength] != "1" and mazeList[currentLocation+widthLength] != "0") and (mazeList[(currentLocation+(widthLength))-1] != " " and mazeList[(currentLocation+(widthLength))-1] != "1" and mazeList[(currentLocation+(widthLength))-1] != "0"):
+    #    bottom = False
+        
+    if top == True:
+        i = currentLocation - 1
+        while mazeList[i] != "|" and mazeList[i] != "+" and mazeList[i] != "-":
+            if mazeList[i] != " " and mazeList[i] != "1" and mazeList[i] != "0":
+                break
+            # if there is a path on the top of the left side
+            if mazeList[i-widthLength] == " " and i-widthLength not in agent.spotsVisited:
+                if mazeList[i-widthLength-widthLength] == "~" or mazeList[i-widthLength-1] == "~":
+                    return i-widthLength
+            # possibly delete
+            #if mazeList[i-widthLength] == " " or mazeList[i-widthLength] == "1" or mazeList[i-widthLength] == "0":
+             #   agent.addSpotSeeing(i-widthLength)
+            #    agent.addSpotSeen(i-widthLength)
+            i = i - 1
+        if mazeList[i-widthLength] == " " and i-widthLength not in agent.spotsVisited:
+            if mazeList[i-widthLength-widthLength] == "~" or mazeList[i-widthLength-1] == "~":
+                return i-widthLength
+    if bottom == True:
+        i = currentLocation - 1
+        while mazeList[i] != "|" and mazeList[i] != "+" and mazeList[i] != "-":
+            if mazeList[i] != " " and mazeList[i] != "1" and mazeList[i] != "0":
+                break
+            # if there is a path on the bottom of the left side
+            if mazeList[i+widthLength] == " " and i+widthLength not in agent.spotsVisited:
+                if mazeList[i+widthLength+widthLength] == "~" or mazeList[i+widthLength-1] == "~":
+                    return i+widthLength
+            #if mazeList[i+widthLength] == " " or mazeList[i+widthLength] == "1" or mazeList[i+widthLength] == "0":
+            #    agent.addSpotSeeing(i+widthLength)
+            #    agent.addSpotSeen(i+widthLength)
+            i = i - 1
+        if mazeList[i+widthLength] == " " and i+widthLength not in agent.spotsVisited:
+            if mazeList[i+widthLength+widthLength] == "~" or mazeList[i+widthLength-1] == "~":
+                return i+widthLength
+    return -1
+
+# looks for paths to the right of the agent
+def rightPath(mazeList,agent,currentLocation):
+    if mazeList[currentLocation+1] != " " or mazeList[currentLocation+2] != " ":
+        return -1
+    global widthLength
+    i = currentLocation + 1
+    top = True
+    bottom = True
+    #if (mazeList[currentLocation-widthLength] != " " and mazeList[currentLocation-widthLength] != "1" and mazeList[currentLocation-widthLength] != "0") and (mazeList[(currentLocation-(widthLength))+1] != " " and mazeList[(currentLocation-(widthLength))+1] != "1"and mazeList[(currentLocation-(widthLength))+1] != "0"):
+    #    top = False
+    #if (mazeList[currentLocation+widthLength] != " " and mazeList[currentLocation+widthLength] != "1" and mazeList[currentLocation+widthLength] != "0") and (mazeList[(currentLocation+(widthLength))+1] != " " and mazeList[(currentLocation+(widthLength))+1] != "1" and mazeList[(currentLocation+(widthLength))+1] != "0"):
+    #    bottom = False
+    #agent.addSpotSeen(i) # so further path decision making can be made
+    if top == True:
+        i = currentLocation+ 1
+        while mazeList[i] != "|"and mazeList[i] != "+" and mazeList[i] != "-":
+            if mazeList[i] != " " and mazeList[i] != "1" and mazeList[i] != "0":
+                break
+            # if there is a path on the top of the right side
+            if mazeList[i - widthLength ] == " " and i - widthLength not in agent.spotsVisited:
+                if mazeList[i-widthLength-widthLength] == "~" or mazeList[i-widthLength+1] == "~":
+                    return i - widthLength
+            # possibly delete
+            #if mazeList[i-widthLength] == " " or mazeList[i-widthLength] == "1" or mazeList[i-widthLength] == "0":
+            #    agent.addSpotSeeing(i-widthLength)
+             #   agent.addSpotSeen(i-widthLength)
+            i = i + 1
+        if mazeList[i - widthLength] == " " and i - widthLength not in agent.spotsVisited:
+            if mazeList[i-widthLength-widthLength] == "~" or mazeList[i-widthLength+1] == "~":
+                return i - widthLength
+    if bottom == True:
+        i = currentLocation + 1
+        while mazeList[i] != "|" and mazeList[i] != "+" and mazeList[i] != "-":
+            if mazeList[i] != " " and mazeList[i] != "1" and mazeList[i] != "0":
+                break
+            # if there is a path on the bottom of the right side
+            if mazeList[i + widthLength] == " " and i + widthLength not in agent.spotsVisited:
+                if mazeList[i+widthLength+widthLength] == "~" or mazeList[i+widthLength+1] == "~":
+                    return i + widthLength
+            #if mazeList[i+widthLength] == " " or mazeList[i+widthLength] == "1" or mazeList[i+widthLength] == "0":
+             #   agent.addSpotSeeing(i+widthLength)
+             #   agent.addSpotSeen(i+widthLength)
+            i = i + 1
+        if mazeList[i+ widthLength] == " " and i+ widthLength not in agent.spotsVisited:
+            if mazeList[i+widthLength+widthLength] == "~" or mazeList[i+widthLength+1] == "~":
+                return i+ widthLength
+    return -1
+
+# checks for a new unvisited spot for an agent to move to
+def checkForNewPath(agent):
+    global widthLength
+    mazeList = list(agent.maze)
+    choice = -1
+    choices = 0
+    choicesList = [-1,-1,-1,-1]
+    #finding out where we need to look
+    if agent.top != -1 and topPath(agent.maze, agent, agent.currentLocation) != -1:
+        choicesList[choices] = topPath(agent.maze, agent, agent.currentLocation)
+        print("top path chosen at "+str(choicesList[choices]))
+        choices = choices + 1
+    if agent.left != -1 and leftPath(agent.maze, agent, agent.currentLocation) != -1:
+        choicesList[choices] = leftPath(agent.maze, agent, agent.currentLocation)
+        print("left path chosen at "+str(choicesList[choices]))
+        choices = choices + 1
+    if agent.right != -1 and rightPath(agent.maze, agent, agent.currentLocation) != -1:
+        choicesList[choices] = rightPath(agent.maze, agent, agent.currentLocation)
+        print("right path chosen at "+str(choicesList[choices]))
+        choices = choices + 1
+    if agent.bottom != -1 and bottomPath(agent.maze, agent, agent.currentLocation) != -1:
+        choicesList[choices] = bottomPath(agent.maze, agent, agent.currentLocation)
+        print("bottom path chosen at "+str(choicesList[choices]))
+        choices = choices + 1
+    print(choicesList)
+    if 0 < choices:
+        choicesList = choicesList[:choices]
+        choice = random.sample(choicesList,1)
+        choice = choice[0]
+        print("going with "+str(choice))
+    if choice != -1:
+        agent.path = uniformCostPath(list(agent.maze), agent.currentLocation, choice)
+    return choice
+    
+# Returns list of unexplored spaces    
+def findUnexploredNewSpaces(maze, agent):
+    global widthLength
+    unexploredSpaces = []
+    result = []
+    count = 0
+    minn = 50000
+    mazeList = list(maze)
+    for space in mazeList:
+        if space == " ":
+            if mazeList[count + 1] == "~" or mazeList[count-1] == "~" or mazeList[count+widthLength] == "~" or mazeList[count-widthLength] == "~":
+                unexploredSpaces.append(count)
+        count = count + 1
+    for spot in unexploredSpaces:
+        tempList = uniformCostPath(list(agent.maze), agent.currentLocation, spot)
+        if len(tempList) < minn:
+            minn = len(tempList)
+            result = tempList
+    for i in result:
+        print("I LOCATION = "+str(i.location))
+    agent.path = result
+    return result
+    
+# Performs a decision made search until it finds the hiding agent, then it will use uniform cost searching algorithm to find the best path to the hiders last known location    
+def randomTraverseDecisionMaking(maze, agent):
+    global stepsTaken
+    mazeList = list(maze)
+    i = 0
+    pathCheck = -1
+    choice = -1
+    choices = 0
+    choicesList = [-1,-1,-1,-1]
+    while i < len(mazeList) and mazeList[i] != agent.name:
+        i = i + 1
+    agent = whatIsAvailable(maze,agent)
+    agent.spotsSeeing.clear()
+    updateSight(mazeList,agent,i)
+    checkForHiderSight(mazeList,agent)
+    #newSpaces = findUnexploredNewSpaces(agent.maze,agent)
+    # making sure we haven't reached the end of our path if the agent has one
+    if agent.path != [] and agent.currentLocation == agent.path[len(agent.path)-1].location:
+            agent.path = []
+    # if we have an empty path, let's update to a possible new path available
+    if agent.path == [] and agent.currentLocation != -1 and 0 < stepsTaken:
+        pathCheck = checkForNewPath(agent)
+    # if we have an empty path, let's update to a possible new path available with all unexplored spaces
+    if agent.path == [] and agent.currentLocation != -1 and 0 < stepsTaken:
+        newSpaces = findUnexploredNewSpaces(agent.maze,agent)
+    # if our agent has a path then that's our first priority for a means of traversing
+    if agent.path != []:
+        print("TRAVERSING PATH")
+        for spot in agent.path:
+            print(str(spot.location))
+        for spot in agent.path:
+            #print("sooo"+str(spot.location))
+            if spot.location == i:
+                index = agent.path.index(spot)
+                choice = agent.path[index+1]
+                break
+        choice = choice.location
+    # otherwise, traverse backwards if no new paths are available until one is found
+    #elif checkForNewSpot(maze,agent) == 0:
+    elif 1 < stepsTaken and pathCheck == -1:
+        print("TRAVERSING BACKWARDS")
+        choice = randomTraverseBackwards(agent,i)
+    # else we choose a random path by gathering what's available 
+    #else:
+    if choice == -1:
+        print("TRAVERSING RANDOM")
+        if agent.top != -1 and agent.top not in agent.spotsVisited:
+            choicesList[choices] = agent.top # if spot available add this to our list
+            choices = choices + 1
+        if agent.bottom != -1 and agent.bottom not in agent.spotsVisited:
+            choicesList[choices] = agent.bottom # so we can choose between what's available
+            choices = choices + 1
+        if agent.left != -1 and agent.left not in agent.spotsVisited:
+            choicesList[choices] = agent.left # [old code below v]
+            choices = choices + 1
+        if agent.right != -1 and agent.right not in agent.spotsVisited:
+            choicesList[choices] = agent.right #mazeList[agent.right] = agent.name
+            choices = choices + 1
+        choicesList = choicesList[:choices]
+        choice = random.sample(choicesList,1)
+        choice = choice[0]
+        
+    agent.addSpotVisited(choice)
+    mazeList[i] = " "
+    mazeList[choice] = agent.name
+    agent.currentLocation = choice
+    agent = agent_reset(agent)
+    maze = "".join(mazeList)
+    agent = whatIsAvailable(maze,agent)
+    stepsTaken = stepsTaken + 1
+    updateSight(mazeList,agent,choice) #debugging purposes (so we can see what he's seeing with the print)
+    return maze
 
 # main
 if __name__ == '__main__':
     maze = make_maze()
     #maze = make_entrance(maze)
-    seeker = Agent("0",-1,-1,-1,-1,-1,-1,[],[],[],[],maze) #(name,top,bottom,left,right,currentLocation,opposingAgentLastLocation,spotsVisited,spotsSeen,spotsSeeing,path,mazeList)
-    hider = Agent("1",-1,-1,-1,-1,-1,-1,[],[],[],[],maze)
-    maze = add_agent(maze, seeker)
-    maze = add_agent_random_spot(maze,hider)
+    seeker = Agent("0",-1,-1,-1,-1,-1,-1,-1,-1,-1,[],[],[],[],maze) #(name,top,bottom,left,right,currentLocation,opposingAgentLastLocation,wallsAroundAgent,stepsFromEntrance,pathDecisionChoicesFromEntrance,spotsVisited,spotsSeen,spotsSeeing,path,mazeList)
+    hider = Agent("1",-1,-1,-1,-1,-1,-1,-1,-1,-1,[],[],[],[],maze)
+    #maze = add_agent(maze, seeker)
+    maze = add_agent(maze,hider)
     updateSight(list(maze),seeker,seeker.currentLocation)
+    allAvailableSpaces = spotsKnown(maze)
+    stepsTakenPerRound = []
     #testing = uniformCostPath(list(maze),seeker.currentLocation,hider.currentLocation)
+    
+    # loading machine learning trained data
+    df = pd.read_csv("data-example.csv")
+    cdf = df[['Walls Around Agent','Steps From Entrance','Path Decision Choices From Entrance','Steps Taken']]
+
+    # creating training dataset
+    msk = np.random.rand(len(df)) < 0.8
+    train = cdf[msk]
+    test = cdf[~msk]
+
+    # creating model
+    model = linear_model.LinearRegression()
+    #model = LogisticRegression(C=0.01, solver='liblinear')
+    #model = DecisionTreeClassifier(criterion="entropy", max_depth = 3)
+
+    # setting up labels/features
+    X_train = np.asanyarray(train[['Walls Around Agent','Steps From Entrance','Path Decision Choices From Entrance']])
+    X_train = preprocessing.StandardScaler().fit(X_train).transform(X_train)
+    y_train = np.asanyarray(train[['Steps Taken']])
+    #X_test = np.asanyarray(test[['Walls Around Agent','Steps From Entrance','Path Decision Choices From Entrance']])
+    #X_test = preprocessing.StandardScaler().fit(X_test).transform(X_test)
+    #y_test = np.asanyarray(test['Steps Taken'])
+    
+    # fitting the model
+    model.fit (X_train, y_train)
+    
+    # running the game
     while gameComplete == 0:
-        # Random search
-        #maze = randomTraverse(maze,seeker)
+        if hiderSteps < maxHiderSteps:
+            if hiderHiding == 1:
+                hiderHiding = 0
+            maze = discoveryHiderTraverse(maze,hider,model)
+            print("HIDING AGENT MAZE = ")
+            print(hider.maze)
+            print("top = "+str(hider.top)+"\nbottom = "+str(hider.bottom)+"\nleft= "+str(hider.left)+"\nright = "+str(hider.right)+"\n")
+            print(maze)
+            #print("spots known = "+str(spotsKnown(hider.maze)))
+        else:
+            if hiderHiding == 0:
+                maze = add_agent(maze, seeker)
+                hiderHiding = 1
+        
+            # Random search
+            #maze = randomTraverse(maze,seeker)
 
-        # Random search to new locations
-        #maze = randomTraverseNewSpots(maze,seeker)
+            # Random search to new locations
+            #maze = randomTraverseNewSpots(maze,seeker)
 
-        # Random search to new locations with visual clues (deprecated, can get caught in a loop with current visual info; creating proper path to the hider with dijkstra/a* algos to fix this)
-        #maze = randomTraverseNewSpotsSight(maze,seeker) 
+            # Random search to new locations with visual clues (deprecated, can get caught in a loop with current visual info; creating proper path to the hider with dijkstra/a* algos to fix this)
+            #maze = randomTraverseNewSpotsSight(maze,seeker) 
 
-        # Random search with uniform cost path seeking 
-        maze = randomTraverseUniformCostSeek(maze,seeker) 
+            # Random search with uniform cost path seeking 
+            maze = randomTraverseUniformCostSeek(maze,seeker) 
 
+            # Random search with uniform cost path seeking + decision making
+            #maze = randomTraverseDecisionMaking(maze,seeker) 
+            
+            print("AGENT MAZE = ")
+            print(seeker.maze)
+            print("top = "+str(seeker.top)+"\nbottom = "+str(seeker.bottom)+"\nleft= "+str(seeker.left)+"\nright = "+str(seeker.right)+"\n")
+            print(maze)
+            if gameComplete == 1 and rounds < 5:
+                gameComplete = 0
+                rounds = rounds + 1
+                hiderSteps = 0
+                stepsTakenPerRound.append(stepsTaken)
+                stepsTaken = 0
+                seeker = Agent("0",-1,-1,-1,-1,-1,-1,-1,-1,-1,[],[],[],[],maze) 
+                maze = remove_seeker(maze)
         # if you press a key it slows down the simulation
         # This only works on Windows        
         # if msvcrt.kbhit():
@@ -770,19 +1397,27 @@ if __name__ == '__main__':
                # slowDown = 1
            # else:
                # slowDown = 0
-        if slowDown == 0:
-            time.sleep(0.06)
-        else:
-            time.sleep(0.6) # replace with putting this(traverse/keyboardinput)^ in tick from game engine and prints in render(or actual 3d maze)
+        #if slowDown == 0:
+        #    time.sleep(0.06)
+        #else:
+         #   time.sleep(0.6) # replace with putting this(traverse/keyboardinput)^ in tick from game engine and prints in render(or actual 3d maze)
         
         #print("SEEKER CURRENT LOCATION = "+str(seeker.currentLocation))
         #testing = uniformCostPath(list(seeker.maze),seeker.currentLocation,57)
         #for test in testing:
         #    print("UNIFORM COST PATH = "+str(test.location))
-        print("AGENT MAZE = ")
-        print(seeker.maze)
-        print("top = "+str(seeker.top)+"\nbottom = "+str(seeker.bottom)+"\nleft= "+str(seeker.left)+"\nright = "+str(seeker.right)+"\n")
-        print(maze)
-    print("Steps Taken = "+str(stepsTaken))
+        #break
+    #print("Steps Taken = "+str(stepsTaken))
+    #print("walls around agent = "+str(hider.wallsAroundAgent))
+    #print("steps from entrance = "+str(hider.stepsFromEntrance))
+    #print("path decision choices from entrance = "+str(hider.pathDecisionChoicesFromEntrance))
+    #print(maze)
+    count = 0
+    for steps in stepsTakenPerRound:
+        print(str(steps)+" steps in round "+str(count+1))
+        count = count + 1
+    
+    #with open('data-example.csv', 'a') as fd:  
+    #    fd.write(str(hider.wallsAroundAgent)+","+str(hider.stepsFromEntrance)+","+str(hider.pathDecisionChoicesFromEntrance)+","+str(stepsTaken)+str("\n"))
     #print("Spots Visited = "+str(seeker.spotsVisited))
     #print("Current Location = "+str(seeker.currentLocation))
