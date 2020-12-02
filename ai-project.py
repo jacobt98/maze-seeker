@@ -1380,14 +1380,15 @@ if __name__ == '__main__':
             print(seeker.maze)
             print("top = "+str(seeker.top)+"\nbottom = "+str(seeker.bottom)+"\nleft= "+str(seeker.left)+"\nright = "+str(seeker.right)+"\n")
             print(maze)
-            if gameComplete == 1 and rounds < 5:
-                gameComplete = 0
-                rounds = rounds + 1
-                hiderSteps = 0
+            if gameComplete == 1:
                 stepsTakenPerRound.append(stepsTaken)
-                stepsTaken = 0
-                seeker = Agent("0",-1,-1,-1,-1,-1,-1,-1,-1,-1,[],[],[],[],maze) 
-                maze = remove_seeker(maze)
+                rounds = rounds + 1
+                if rounds < 5:
+                    gameComplete = 0
+                    stepsTaken = 0
+                    hiderSteps = 0
+                    seeker = Agent("0",-1,-1,-1,-1,-1,-1,-1,-1,-1,[],[],[],[],maze) 
+                    maze = remove_seeker(maze)
         # if you press a key it slows down the simulation
         # This only works on Windows        
         # if msvcrt.kbhit():
@@ -1411,7 +1412,6 @@ if __name__ == '__main__':
     #print("walls around agent = "+str(hider.wallsAroundAgent))
     #print("steps from entrance = "+str(hider.stepsFromEntrance))
     #print("path decision choices from entrance = "+str(hider.pathDecisionChoicesFromEntrance))
-    #print(maze)
     count = 0
     for steps in stepsTakenPerRound:
         print(str(steps)+" steps in round "+str(count+1))
