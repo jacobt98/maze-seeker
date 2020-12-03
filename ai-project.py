@@ -878,7 +878,7 @@ def discoveryHiderTraverse(maze, agent, model):
     #print("agent location = "+str(agent.currentLocation))
     allAvailableSpacesby10 = allAvailableSpaces / 10
     # checking to see if we know enough spots to determine where to hider
-    if agent.path == [] and ((100 * (rounds+1) <= int(spotsKnown(agent.maze))) or (int(spotsKnown(agent.maze))+allAvailableSpacesby10 >= allAvailableSpaces) or (hiderSteps > maxHiderSteps + 25)):
+    if agent.path == [] and ((100 * (rounds+1) <= int(spotsKnown(agent.maze))) or (int(spotsKnown(agent.maze))+allAvailableSpacesby10 >= allAvailableSpaces) or (hiderSteps > maxHiderSteps - 25)):
         agent.path = uniformCostPath(list(agent.maze), agent.currentLocation, decideBestHidingSpot(agent.maze,agent, model))
     #decideBestHidingSpot(agent.maze,agent, model)
     
