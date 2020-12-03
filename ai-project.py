@@ -878,7 +878,7 @@ def discoveryHiderTraverse(maze, agent, model):
     #print("agent location = "+str(agent.currentLocation))
     allAvailableSpacesby10 = allAvailableSpaces / 10
     # checking to see if we know enough spots to determine where to hider
-    if agent.path == [] and ((100 * (rounds+1) <= int(spotsKnown(agent.maze))) or (int(spotsKnown(agent.maze))+allAvailableSpacesby10 >= allAvailableSpaces)):
+    if agent.path == [] and ((100 * (rounds+1) <= int(spotsKnown(agent.maze))) or (int(spotsKnown(agent.maze))+allAvailableSpacesby10 >= allAvailableSpaces) or (hiderSteps > maxHiderSteps + 25)):
         agent.path = uniformCostPath(list(agent.maze), agent.currentLocation, decideBestHidingSpot(agent.maze,agent, model))
     #decideBestHidingSpot(agent.maze,agent, model)
     
@@ -1401,7 +1401,7 @@ if __name__ == '__main__':
         #if slowDown == 0:
         #    time.sleep(0.06)
         #else:
-         #   time.sleep(0.6) # replace with putting this(traverse/keyboardinput)^ in tick from game engine and prints in render(or actual 3d maze)
+        #    time.sleep(0.6) # replace with putting this(traverse/keyboardinput)^ in tick from game engine and prints in render(or actual 3d maze)
         
         #print("SEEKER CURRENT LOCATION = "+str(seeker.currentLocation))
         #testing = uniformCostPath(list(seeker.maze),seeker.currentLocation,57)
